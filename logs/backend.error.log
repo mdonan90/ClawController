@@ -1,0 +1,1260 @@
+INFO:     Started server process [82553]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:59877 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:59880 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:59916 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:59922 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:60019 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:60023 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:60189 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:60194 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:60395 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:60402 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:60721 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58529 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:60729 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [82553]
+INFO:     Started server process [82833]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:60769 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:60773 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:60778 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58561 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:60785 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:58591 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58592 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:61339 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:58682 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:61348 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58683 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:61365 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:58692 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:61372 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58695 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:61402 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:58710 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:61412 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58711 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:61424 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:58715 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:61429 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58718 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:61433 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58719 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:61439 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58720 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:61461 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58727 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     connection open
+INFO:     127.0.0.1:61466 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58734 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:61488 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:58744 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:61495 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58745 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [82833]
+INFO:     Started server process [83272]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     100.122.211.38:58855 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58856 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58857 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58858 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:61854 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:61864 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:61870 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:61872 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58859 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58860 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58861 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:58862 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:61907 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:61912 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:62059 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:62066 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:62227 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:62232 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     100.122.211.38:59015 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:59048 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:62409 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:62416 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:59095 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [83272]
+INFO:     Started server process [83628]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:62728 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:62731 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:62747 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:62756 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:62759 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:59257 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:62765 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:62767 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:59310 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:59316 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:59333 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:59379 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [83628]
+INFO:     Started server process [83760]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:63051 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:59413 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63054 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:63071 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:63080 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63082 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:63084 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:59428 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63086 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63098 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [83760]
+INFO:     Started server process [83970]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:63753 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63756 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:59895 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:63776 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:63783 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:59911 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63785 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:63787 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63792 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63794 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63803 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:63805 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:59971 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:63888 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:63893 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63895 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:59982 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63901 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:59984 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63903 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63905 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:63907 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63909 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:63911 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:63913 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:63915 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:63917 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:59985 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:59986 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:63923 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63926 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63928 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63930 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63932 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63934 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:59987 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:59991 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:63963 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:63972 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63974 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63976 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60008 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [83970]
+INFO:     Started server process [84041]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:64003 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60016 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64006 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64009 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:64033 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:64037 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64040 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64041 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60030 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64044 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64047 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [84041]
+INFO:     Started server process [84149]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:64298 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64301 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64305 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60117 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:64322 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:64331 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64333 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:60132 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64335 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64338 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64343 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64345 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [84149]
+INFO:     Started server process [84219]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:64530 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64533 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64537 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:60210 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:64558 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:64562 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64564 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64567 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60225 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64573 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64577 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [84219]
+INFO:     Started server process [84394]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:65021 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65025 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60406 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65029 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:65045 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     100.122.211.38:60421 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65054 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65057 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65059 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65065 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65068 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [84394]
+INFO:     Started server process [84454]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:65136 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60447 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65139 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65142 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:65164 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:65168 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65170 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60462 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65172 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65178 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65183 - "WebSocket /ws" [accepted]
+INFO:     connection open
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/uvicorn/protocols/http/httptools_impl.py", line 416, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.scope, self.receive, self.send
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/fastapi/applications.py", line 1138, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/applications.py", line 107, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/middleware/cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/fastapi/routing.py", line 115, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/fastapi/routing.py", line 101, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/fastapi/routing.py", line 355, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/fastapi/routing.py", line 243, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/main.py", line 401, in update_task
+    task.status = TaskStatus(task_data.status)
+                  ~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/enum.py", line 707, in __call__
+    return cls.__new__(cls, value)
+           ~~~~~~~~~~~^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/enum.py", line 1192, in __new__
+    raise ve_exc
+ValueError: 'COMPLETE' is not a valid TaskStatus
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/uvicorn/protocols/http/httptools_impl.py", line 416, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.scope, self.receive, self.send
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/fastapi/applications.py", line 1138, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/applications.py", line 107, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/middleware/cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/fastapi/routing.py", line 115, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/fastapi/routing.py", line 101, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/fastapi/routing.py", line 355, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/venv/lib/python3.14/site-packages/fastapi/routing.py", line 243, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jarvisai/.openclaw/mission-control-v2/backend/main.py", line 401, in update_task
+    task.status = TaskStatus(task_data.status)
+                  ~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/enum.py", line 707, in __call__
+    return cls.__new__(cls, value)
+           ~~~~~~~~~~~^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/enum.py", line 1192, in __new__
+    raise ve_exc
+ValueError: 'COMPLETE' is not a valid TaskStatus
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [84454]
+INFO:     Started server process [84586]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:65468 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60587 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65472 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:65475 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:65494 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:65502 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65505 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65507 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60599 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:65510 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65514 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:65521 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [84586]
+INFO:     Started server process [84650]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49255 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60639 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49258 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49262 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:49283 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     100.122.211.38:60654 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49287 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49290 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49291 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49296 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49301 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [84650]
+INFO:     Started server process [84698]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49378 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60689 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49381 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:49385 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:49399 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:49408 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49410 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49412 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60704 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49415 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49423 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [84698]
+INFO:     Started server process [84748]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49545 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49548 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60732 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49552 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:49576 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:49581 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49584 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49585 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60748 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49587 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49595 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [84748]
+INFO:     Started server process [84787]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49669 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60763 - "WebSocket /ws" [accepted]
+INFO:     127.0.0.1:49672 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection open
+INFO:     127.0.0.1:49676 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:49697 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:49701 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49704 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49705 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60779 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49711 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49713 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [84787]
+INFO:     Started server process [84885]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49962 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60869 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49965 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49968 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:49987 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:49992 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:60884 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49996 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:49998 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50000 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:50002 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50007 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50014 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [84885]
+INFO:     Started server process [85069]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:50457 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:61052 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50461 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50464 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:50480 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:50489 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50491 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:50493 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:61067 - "WebSocket /ws" [accepted]
+INFO:     127.0.0.1:50495 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection open
+INFO:     127.0.0.1:50499 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50508 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:50609 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:50614 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:50616 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     100.122.211.38:61108 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50621 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50623 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50625 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:61112 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [85069]
+INFO:     Started server process [85142]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:50734 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:50741 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50744 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:61158 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50745 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50753 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [85142]
+INFO:     Started server process [85175]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:50800 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:50804 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50806 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50808 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:61167 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50811 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50816 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:51012 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:51017 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:51019 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51025 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51027 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51029 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [85175]
+INFO:     Started server process [85247]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:51066 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:51071 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51075 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51077 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     100.122.211.38:61340 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51085 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51089 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [85247]
+INFO:     Started server process [85319]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:51231 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51234 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51237 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:51258 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:51263 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51266 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51268 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51271 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51277 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:51382 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:51387 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:51394 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:51396 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:51401 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:51403 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [85319]
+INFO:     Started server process [85393]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:51527 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     127.0.0.1:51531 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51534 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51535 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51543 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51545 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [85393]
