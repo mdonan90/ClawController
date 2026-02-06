@@ -1,0 +1,42 @@
+{
+  "name": "clawcontroller",
+  "version": "1.0.0",
+  "description": "Mission Control for OpenClaw Agents - Task management dashboard for AI agent teams",
+  "keywords": [
+    "openclaw",
+    "ai",
+    "agents",
+    "task-management",
+    "dashboard",
+    "llm",
+    "automation"
+  ],
+  "author": "Mike Donan <mike@clawcontroller.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mdonan90/ClawController.git"
+  },
+  "homepage": "https://clawcontroller.com",
+  "bugs": {
+    "url": "https://github.com/mdonan90/ClawController/issues"
+  },
+  "bin": {
+    "clawcontroller": "./bin/clawcontroller.js"
+  },
+  "scripts": {
+    "postinstall": "node ./bin/setup.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "bin/",
+    "backend/",
+    "frontend/",
+    "start.sh",
+    "stop.sh",
+    "README.md",
+    "LICENSE"
+  ]
+}
