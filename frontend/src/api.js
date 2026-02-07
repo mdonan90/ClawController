@@ -143,6 +143,10 @@ export async function completeDeliverable(deliverableId) {
   return fetchAPI(`/api/deliverables/${deliverableId}/complete`, { method: 'PATCH' })
 }
 
+export async function deleteDeliverable(deliverableId) {
+  return fetchAPI(`/api/deliverables/${deliverableId}`, { method: 'DELETE' })
+}
+
 // ============ Chat ============
 export async function fetchChatMessages(limit = 50) {
   return fetchAPI(`/api/chat?limit=${limit}`)

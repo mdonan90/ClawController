@@ -977,20 +977,15 @@ export const useMissionStore = create((set, get) => ({
     )
   })),
   
-  removeDeliverableAttachment: (taskId, checklistItemId) => set((state) => ({
-    tasks: state.tasks.map(t =>
-      t.id === taskId
-        ? {
-            ...t,
-            checklist: t.checklist.map(item =>
-              item.id === checklistItemId
-                ? { ...item, attachment: null }
-                : item
-            )
-          }
-        : t
-    )
-  })),
+  removeDeliverableAttachment: async (taskId, checklistItemId) => {
+    try {
+      await api.deleteDeliverable(checklistItemId)
+      get().refreshTasks()
+    } catch (error) {
+      console.error('Failed to delete deliverable:', error)
+      throw error
+    }
+  },
   
   // ============ Stats ============
   getStats: () => {

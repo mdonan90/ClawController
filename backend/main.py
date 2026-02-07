@@ -258,7 +258,14 @@ def notify_task_rejected(task, feedback: str = None, rejected_by: str = None):
 **Task ID:** {task.id}
 **Feedback:** {feedback or 'No feedback provided'}
 
-Please address the feedback and resubmit when ready.
+Please address the feedback and resubmit for review.
+
+**IMPORTANT: Resubmission Process**
+1. Address all feedback points
+2. When fixes are complete, set status to REVIEW (not DONE)
+3. Use: `curl -X PATCH http://localhost:8000/api/tasks/{task.id} -d '{{"status": "REVIEW"}}'`
+
+**Note:** Review gate prevents setting status directly to DONE. Tasks must go through REVIEW → approval workflow.
 
 **Log activity:**
 curl -X POST http://localhost:8000/api/tasks/{task.id}/activity -H "Content-Type: application/json" -d '{{"agent_id": "{task.assignee_id}", "message": "YOUR_UPDATE"}}'
@@ -1316,6 +1323,25 @@ async def complete_deliverable(deliverable_id: str, db: Session = Depends(get_db
     await log_activity(db, "deliverable_complete", task_id=deliverable.task_id, 
                        description=f"Deliverable completed: {deliverable.title}")
     await manager.broadcast({"type": "deliverable_complete", "data": {"id": deliverable_id, "task_id": deliverable.task_id}})
+    
+    return {"ok": True}
+
+@app.delete("/api/deliverables/{deliverable_id}")
+async def delete_deliverable(deliverable_id: str, db: Session = Depends(get_db)):
+    deliverable = db.query(Deliverable).filter(Deliverable.id == deliverable_id).first()
+    if not deliverable:
+        raise HTTPException(status_code=404, detail="Deliverable not found")
+    
+    task_id = deliverable.task_id
+    deliverable_title = deliverable.title
+    
+    # Delete the deliverable
+    db.delete(deliverable)
+    db.commit()
+    
+    await log_activity(db, "deliverable_deleted", task_id=task_id, 
+                       description=f"Deliverable deleted: {deliverable_title}")
+    await manager.broadcast({"type": "deliverable_deleted", "data": {"id": deliverable_id, "task_id": task_id}})
     
     return {"ok": True}
 

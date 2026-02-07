@@ -1,4 +1,4 @@
-import { X, ChevronRight, ChevronLeft, Check, MessageSquare, User, Calendar, Paperclip, FileText, Download, Trash2, Activity } from 'lucide-react'
+import { X, ChevronRight, ChevronLeft, Check, MessageSquare, User, Calendar, FileText, Download, Trash2, Activity } from 'lucide-react'
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useMissionStore, priorityColors, statusColors, statusOrder } from '../store/useMissionStore'
 import MentionText from './MentionText'
@@ -105,24 +105,18 @@ export default function TaskModal() {
   const approveTask = useMissionStore((state) => state.approveTask)
   const setReviewer = useMissionStore((state) => state.setReviewer)
   const updateTaskDueDate = useMissionStore((state) => state.updateTaskDueDate)
-  const toggleChecklistItem = useMissionStore((state) => state.toggleChecklistItem)
-  const addDeliverable = useMissionStore((state) => state.addDeliverable)
-  const addDeliverableAttachment = useMissionStore((state) => state.addDeliverableAttachment)
   const removeDeliverableAttachment = useMissionStore((state) => state.removeDeliverableAttachment)
   const addComment = useMissionStore((state) => state.addComment)
   const deleteTask = useMissionStore((state) => state.deleteTask)
   
   const [showFeedback, setShowFeedback] = useState(false)
   const [feedback, setFeedback] = useState('')
-  const [newDeliverableTitle, setNewDeliverableTitle] = useState('')
   // Default to lead agent or first agent
   const leadAgent = agents.find(a => a.role === 'LEAD') || agents[0]
   const [selectedReviewer, setSelectedReviewer] = useState(leadAgent?.id || 'human')
   const [newComment, setNewComment] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const fileInputRef = useRef(null)
   const commentInputRef = useRef(null)
-  const [uploadingForItem, setUploadingForItem] = useState(null)
   const [activityLog, setActivityLog] = useState([])
   const [activityLoading, setActivityLoading] = useState(false)
   const [previewFile, setPreviewFile] = useState(null)
@@ -212,30 +206,6 @@ export default function TaskModal() {
   
   const handleDueDateChange = (date) => {
     updateTaskDueDate(task.id, date ? date.toISOString() : null)
-  }
-  
-  const handleFileUpload = (itemId) => {
-    setUploadingForItem(itemId)
-    fileInputRef.current?.click()
-  }
-  
-  const handleFileSelected = (e) => {
-    const file = e.target.files?.[0]
-    if (file && uploadingForItem) {
-      // Mock upload - in real implementation, upload to server
-      const attachment = {
-        name: file.name,
-        path: `/uploads/${file.name}`,
-        size: file.size,
-        type: file.type
-      }
-      addDeliverableAttachment(task.id, uploadingForItem, attachment)
-      setUploadingForItem(null)
-    }
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
   }
   
   const handleRemoveAttachment = (itemId) => {
@@ -480,85 +450,48 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
 
           <div className="modal-section">
             <h3>Deliverables</h3>
-            <div className="checklist">
-              {task.checklist.map((item) => (
-                <div key={item.id} className="deliverable-item">
-                  <label className={`check-item ${item.done ? 'done' : ''}`}>
-                    <input 
-                      type="checkbox" 
-                      checked={item.done} 
-                      onChange={() => toggleChecklistItem(task.id, item.id)}
-                    />
-                    <span>{item.label}</span>
-                  </label>
-                  <div className="deliverable-actions">
-                    {item.attachment ? (
-                      <div className="attachment-badge">
-                        <span className="attachment-icon">{getFileIcon(item.attachment.name)}</span>
-                        <button 
-                          className="attachment-name clickable"
-                          onClick={() => handlePreviewFile(item.attachment)}
-                          title="Click to preview"
-                        >
-                          {item.attachment.name}
-                        </button>
-                        <a 
-                          href={`/api/files/preview?path=${encodeURIComponent(item.attachment.path)}`}
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="attachment-download"
-                          title="Download"
-                        >
-                          <Download size={12} />
-                        </a>
-                        <button 
-                          className="attachment-remove"
-                          onClick={() => handleRemoveAttachment(item.id)}
-                          title="Remove"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ) : (
+            <div className="deliverables-list">
+              {task.checklist
+                .filter(item => item.attachment) // Only show items with files
+                .map((item) => (
+                  <div key={item.id} className="deliverable-file-item">
+                    <div className="file-info">
+                      <span className="file-icon">{getFileIcon(item.attachment.name)}</span>
                       <button 
-                        className="attach-button"
-                        onClick={() => handleFileUpload(item.id)}
-                        title="Attach file"
+                        className="file-name clickable"
+                        onClick={() => handlePreviewFile(item.attachment)}
+                        title="Click to preview"
                       >
-                        <Paperclip size={14} />
+                        {item.attachment.name}
                       </button>
-                    )}
+                    </div>
+                    <div className="file-actions">
+                      <a 
+                        href={`/api/files/preview?path=${encodeURIComponent(item.attachment.path)}`}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="file-action-btn download-btn"
+                        title="Download"
+                      >
+                        <Download size={14} />
+                      </a>
+                      <button 
+                        className="file-action-btn delete-btn"
+                        onClick={() => handleRemoveAttachment(item.id)}
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
               
-              {/* Add new deliverable */}
-              <div className="add-deliverable">
-                <input
-                  type="text"
-                  placeholder="Add deliverable..."
-                  value={newDeliverableTitle}
-                  onChange={(e) => setNewDeliverableTitle(e.target.value)}
-                  onKeyPress={async (e) => {
-                    if (e.key === 'Enter' && newDeliverableTitle.trim()) {
-                      try {
-                        await addDeliverable(task.id, newDeliverableTitle.trim())
-                        setNewDeliverableTitle('')
-                      } catch (error) {
-                        console.error('Failed to add deliverable:', error)
-                      }
-                    }
-                  }}
-                  className="deliverable-input"
-                />
-              </div>
+              {task.checklist.filter(item => item.attachment).length === 0 && (
+                <div className="no-deliverables">
+                  No deliverables uploaded yet.
+                </div>
+              )}
             </div>
-            <input
-              type="file"
-              ref={fileInputRef}
-              style={{ display: 'none' }}
-              onChange={handleFileSelected}
-            />
           </div>
 
           <div className="modal-section">
