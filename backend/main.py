@@ -869,8 +869,17 @@ async def review_task(task_id: str, review_data: ReviewAction, db: Session = Dep
         task.reviewer_id = None
         task.reviewer = None  # Backwards compatibility
         
+        # Log to general activity log
         await log_activity(db, "task_approved", task_id=task.id,
                           description=f"Task approved by {old_reviewer}")
+        
+        # Auto-log to TaskActivity when approved to DONE
+        activity = TaskActivity(
+            task_id=task_id,
+            agent_id=old_reviewer or get_lead_agent_id(db),
+            message=f"✅ Approved and marked DONE by {old_reviewer}"
+        )
+        db.add(activity)
         
         # Notify task completion to main agent
         db.commit()
