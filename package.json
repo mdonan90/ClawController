@@ -1,6 +1,6 @@
 {
   "name": "clawcontroller",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Mission Control for OpenClaw Agents - Task management dashboard for AI agent teams",
   "keywords": [
     "openclaw",
