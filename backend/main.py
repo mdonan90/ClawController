@@ -77,7 +77,7 @@ class TaskUpdate(BaseModel):
     priority: Optional[str] = None
     tags: Optional[List[str]] = None
     assignee_id: Optional[str] = None
-    reviewer: Optional[str] = None  # "main" or "mike"
+    reviewer: Optional[str] = None  # agent id or "human"
 
 class CommentCreate(BaseModel):
     content: str
@@ -146,43 +146,12 @@ async def log_activity(db: Session, activity_type: str, agent_id: str = None, ta
 
 # ============ Auto-Assignment Rules ============
 # Tag → Agent mapping for automatic task assignment
+# Add your own mappings here based on your agents
 ASSIGNMENT_RULES = {
-    # Development
-    "code": "dev",
-    "bug": "dev",
-    "feature": "dev",
-    "frontend": "dev",
-    "backend": "dev",
-    "api": "dev",
-    
-    # Trading
-    "trading": "trader",
-    "kalshi": "trader",
-    "market": "trader",
-    "stocks": "trader",
-    "options": "trader",
-    
-    # Lead Generation
-    "leads": "sg-leadgen",
-    "research": "sg-leadgen",
-    "prospects": "sg-leadgen",
-    
-    # Sales
-    "sales": "sg-sales",
-    "outreach": "sg-sales",
-    "email": "sg-sales",
-    "pitch": "sg-sales",
-    
-    # Marketing
-    "marketing": "brand",
-    "brand": "brand",
-    "content": "brand",
-    "social": "brand",
-    
-    # Education
-    "safeharbor": "rodel",
-    "school": "rodel",
-    "education": "rodel",
+    # Example mappings - customize for your agents
+    # "code": "dev",
+    # "bug": "dev",
+    # "feature": "dev",
 }
 
 def get_auto_assignee(tags: list) -> str | None:
@@ -197,7 +166,7 @@ def get_auto_assignee(tags: list) -> str | None:
 
 # Helper to notify main agent when task is completed
 def notify_task_completed(task, completed_by: str = None):
-    """Notify main agent (Jarvis) when a task is marked DONE."""
+    """Notify main agent when a task is marked DONE."""
     agent_name = completed_by or task.assignee_id or "Unknown"
     
     message = f"""✅ Task completed: {task.title}
@@ -302,7 +271,7 @@ def notify_agent_of_task(task):
 curl -X POST http://localhost:8000/api/tasks/{task.id}/activity -H "Content-Type: application/json" -d '{{"agent_id": "{task.assignee_id}", "message": "YOUR_UPDATE"}}'
 
 ## When Complete
-Post an activity with 'completed' or 'done' in the message - the system will auto-transition to REVIEW for Jarvis to verify."""
+Post an activity with 'completed' or 'done' in the message - the system will auto-transition to REVIEW."""
 
     try:
         subprocess.Popen(
@@ -444,24 +413,17 @@ def get_openclaw_agents(db: Session = Depends(get_db)):
             status = "WORKING"
         
         # Determine role based on agent configuration
-        role = "INT"  # Default to Developer
+        role = "INT"  # Default to integration agent
         if agent_id == "main":
             role = "LEAD"
-        elif agent_id in ["trader", "rodel"]:
-            role = "SPC"
         
         identity = agent.get("identity", {})
         name = identity.get("name") or agent.get("name") or agent_id
         emoji = identity.get("emoji") or "🤖"
         
-        # Get description based on agent type
+        # Get description - defaults to agent id
         descriptions = {
             "main": "Primary orchestrator and squad lead",
-            "dev": "Code generation and development tasks",
-            "trader": "Market analysis and trading operations",
-            "sg-leadgen": "Lead generation for Sentiment Guardian",
-            "sg-sales": "Sales outreach for Sentiment Guardian",
-            "rodel": "Educational assistance specialist",
         }
         
         # Get model - use agent-specific or fall back to default
@@ -728,7 +690,7 @@ async def review_task(task_id: str, review_data: ReviewAction, db: Session = Dep
         if review_data.feedback:
             comment = Comment(
                 task_id=task_id,
-                agent_id="main",  # Jarvis
+                agent_id="main",  # Main agent
                 content=f"📝 Review feedback: {review_data.feedback}"
             )
             db.add(comment)

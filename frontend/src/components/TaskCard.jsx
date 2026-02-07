@@ -82,7 +82,7 @@ function TaskCardContent({ task, isDragging = false, showHandle = true, onHandle
           )}
           {task.status === 'REVIEW' && task.reviewer && (
             <div className="task-reviewer" title={`Awaiting review from ${task.reviewer}`}>
-              {task.reviewer === 'mike' ? '👤' : '🔵'} Review: {task.reviewer}
+              {task.reviewer === 'human' ? '👤' : '🤖'} Review: {task.reviewer}
             </div>
           )}
           <div className="task-time">

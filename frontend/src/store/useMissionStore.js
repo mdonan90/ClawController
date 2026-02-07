@@ -25,9 +25,9 @@ const mentionsUser = (text) => {
   const lowerText = text.toLowerCase()
   // Check for common user mentions
   return lowerText.includes('@user') || 
-         lowerText.includes('@mike') || 
          lowerText.includes('@human') ||
-         lowerText.includes('@boss')
+         lowerText.includes('@boss') ||
+         lowerText.includes('@owner')
 }
 
 // Transform API agent to frontend format
@@ -107,16 +107,19 @@ function getRoleLabel(role) {
 }
 
 function getAgentColor(id, name) {
-  const colors = {
-    main: '#E07B3C',
-    jarvis: '#E07B3C',
-    dev: '#3B82F6',
-    trader: '#16A34A',
-    leadgen: '#A855F7',
-    sales: '#F59E0B',
-    rodel: '#0EA5E9',
+  // Generate consistent color from agent id
+  const colorPalette = [
+    '#E07B3C', '#3B82F6', '#16A34A', '#A855F7', 
+    '#F59E0B', '#0EA5E9', '#EF4444', '#8B5CF6',
+    '#10B981', '#F97316', '#06B6D4', '#EC4899'
+  ]
+  // Hash the id to get a consistent color
+  let hash = 0
+  const str = id || name || 'default'
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash)
   }
-  return colors[id] || colors[name?.toLowerCase()] || '#6B7280'
+  return colorPalette[Math.abs(hash) % colorPalette.length]
 }
 
 function formatTime(isoString) {
@@ -541,7 +544,7 @@ export const useMissionStore = create((set, get) => ({
     
     try {
       if (nextStatus === 'REVIEW') {
-        await api.reviewTask(taskId, 'send_to_review', null, reviewer || 'jarvis')
+        await api.reviewTask(taskId, 'send_to_review', null, reviewer || 'main')
       } else {
         const backendStatus = nextStatus === 'IN PROGRESS' ? 'IN_PROGRESS' : nextStatus
         await api.updateTask(taskId, { status: backendStatus })
@@ -671,7 +674,7 @@ export const useMissionStore = create((set, get) => ({
     // Determine target agent
     const targetAgentId = mentions.length === 1 ? mentions[0].id : 'main'
     const targetAgent = agents.find(a => a.id === targetAgentId) || 
-      { id: 'main', name: 'Jarvis', avatar: '🤖', color: '#F97316' }
+      { id: 'main', name: 'Main Agent', avatar: '🤖', color: '#E07B3C' }
     
     // 1. Immediately add user message
     const userMessage = {

@@ -150,7 +150,7 @@ export default function ChatWidget() {
     const agent = agents.find((item) => item.id === agentId)
     if (agent) return agent
     if (agentId === 'main') {
-      return { id: 'main', name: 'Jarvis', avatar: '🤖', color: '#F97316' }
+      return { id: 'main', name: 'Main Agent', avatar: '🤖', color: '#E07B3C' }
     }
     return { id: agentId, name: agentId, avatar: '🤖', color: '#6B7280' }
   }

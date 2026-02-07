@@ -113,7 +113,7 @@ export default function TaskModal() {
   
   const [showFeedback, setShowFeedback] = useState(false)
   const [feedback, setFeedback] = useState('')
-  const [selectedReviewer, setSelectedReviewer] = useState('jarvis')
+  const [selectedReviewer, setSelectedReviewer] = useState('main')
   const [newComment, setNewComment] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const fileInputRef = useRef(null)
@@ -261,7 +261,7 @@ export default function TaskModal() {
     }
     
     // Always add to comments (backward compat)
-    addComment(task.id, 'jarvis', commentText)
+    addComment(task.id, 'user', commentText)
     
     // If there are mentions, also handle activity log and agent routing
     if (mentions.length > 0) {
@@ -646,17 +646,17 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
                   <div className="reviewer-options">
                     <button
                       type="button"
-                      className={`reviewer-btn ${selectedReviewer === 'jarvis' ? 'active' : ''}`}
-                      onClick={() => setSelectedReviewer('jarvis')}
+                      className={`reviewer-btn ${selectedReviewer === 'main' ? 'active' : ''}`}
+                      onClick={() => setSelectedReviewer('main')}
                     >
-                      🔵 Jarvis
+                      🤖 Agent
                     </button>
                     <button
                       type="button"
-                      className={`reviewer-btn ${selectedReviewer === 'mike' ? 'active' : ''}`}
-                      onClick={() => setSelectedReviewer('mike')}
+                      className={`reviewer-btn ${selectedReviewer === 'human' ? 'active' : ''}`}
+                      onClick={() => setSelectedReviewer('human')}
                     >
-                      👤 Mike
+                      👤 Human
                     </button>
                   </div>
                 </div>
@@ -666,8 +666,8 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
               {isInReview && task.reviewer && (
                 <div className="review-info">
                   <span className="review-badge">
-                    {task.reviewer === 'mike' ? '👤' : '🔵'} 
-                    Awaiting review from <strong>{task.reviewer === 'mike' ? 'Mike' : 'Jarvis'}</strong>
+                    {task.reviewer === 'human' ? '👤' : '🤖'} 
+                    Awaiting review from <strong>{task.reviewer}</strong>
                   </span>
                 </div>
               )}
