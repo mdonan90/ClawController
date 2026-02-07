@@ -1940,97 +1940,135 @@ async def trigger_recurring_task(recurring_id: str, db: Session = Depends(get_db
 
 @app.get("/api/models")
 def get_models():
-    """Return list of available models from OpenClaw config."""
-    home = Path.home()
-    config_path = home / ".openclaw" / "openclaw.json"
-    
-    # Fallback models if OpenClaw config not available
-    fallback_models = [
-        {"id": "anthropic/claude-opus-4-5", "alias": "opus", "description": "Most capable, complex tasks"},
-        {"id": "anthropic/claude-sonnet-4", "alias": "sonnet", "description": "Balanced, good for writing"},
-        {"id": "anthropic/claude-3-5-haiku-latest", "alias": "haiku", "description": "Fast, cost-efficient"},
-        {"id": "openai-codex/gpt-5.2", "alias": "codex", "description": "Specialized for coding"}
-    ]
-    
-    if not config_path.exists():
-        return fallback_models
-    
+    """Return list of available models from OpenClaw API."""
     try:
-        with open(config_path) as f:
-            config = json.load(f)
+        # Call OpenClaw models list API directly
+        result = subprocess.run(
+            ["openclaw", "models", "list", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            cwd=str(Path.home())
+        )
         
-        # Get models from providers section
-        providers = config.get("models", {}).get("providers", {})
+        if result.returncode != 0:
+            print(f"OpenClaw models command failed: {result.stderr}")
+            raise Exception(f"Command failed with code {result.returncode}")
+        
+        # Parse OpenClaw JSON response
+        openclaw_data = json.loads(result.stdout)
+        models = openclaw_data.get("models", [])
+        
         available_models = []
-        seen_model_ids = set()
-        
-        # Extract models from OpenClaw config providers
-        for provider_name, provider_config in providers.items():
-            if isinstance(provider_config, dict) and "models" in provider_config:
-                models = provider_config["models"]
-                for model in models:
-                    model_id = model.get("id")
-                    model_name = model.get("name") or model_id
-                    
-                    if not model_id or model_id in seen_model_ids:
-                        continue
-                    seen_model_ids.add(model_id)
-                    
-                    # Generate alias from model name or id
-                    alias = model_id.lower()
-                    if "opus" in alias:
-                        alias = "opus"
-                    elif "sonnet" in alias:
-                        alias = "sonnet" 
-                    elif "haiku" in alias:
-                        alias = "haiku"
-                    elif "codex" in alias or "gpt" in alias:
-                        alias = "codex"
-                    elif "llama" in alias:
-                        alias = "llama"
-                    else:
-                        # Use simplified name
-                        alias = model_name.replace("-", " ").title()[:8]
-                    
-                    # Generate description
-                    description = model_name
-                    if "opus" in model_id.lower():
-                        description = "Most capable, complex tasks"
-                    elif "sonnet" in model_id.lower():
-                        description = "Balanced, good for writing"
-                    elif "haiku" in model_id.lower():
-                        description = "Fast, cost-efficient"
-                    elif "codex" in model_id.lower() or "gpt" in model_id.lower():
-                        description = "Specialized for coding"
-                    elif "llama" in model_id.lower():
-                        description = "Open source model"
-                    
-                    available_models.append({
-                        "id": model_id,
-                        "alias": alias,
-                        "description": description
-                    })
-        
-        # Also add common anthropic models that might be referenced but not listed
-        common_models = [
-            {"id": "anthropic/claude-opus-4-5", "alias": "opus", "description": "Most capable, complex tasks"},
-            {"id": "anthropic/claude-sonnet-4-20250514", "alias": "sonnet", "description": "Balanced, good for writing"},
-            {"id": "anthropic/claude-haiku-4-5", "alias": "haiku", "description": "Fast, cost-efficient"}
-        ]
-        
-        for model in common_models:
-            if model["id"] not in seen_model_ids:
-                available_models.append(model)
-        
-        # If no models found in config, return fallback
-        if not available_models:
-            return fallback_models
+        for model in models:
+            # Only include available models
+            if not model.get("available", False):
+                continue
+                
+            model_id = model.get("key")
+            model_name = model.get("name", model_id)
             
-        return available_models
+            if not model_id:
+                continue
+            
+            # Generate alias from model ID
+            alias = generate_model_alias(model_id, model_name)
+            
+            # Generate description based on model characteristics
+            description = generate_model_description(model_id, model_name, model)
+            
+            available_models.append({
+                "id": model_id,
+                "alias": alias,
+                "description": description
+            })
         
-    except Exception as e:
-        print(f"Failed to read OpenClaw config for models: {e}")
-        return fallback_models
+        if available_models:
+            print(f"Fetched {len(available_models)} models from OpenClaw API")
+            return available_models
+        else:
+            print("No available models found in OpenClaw, using fallback")
+            return get_fallback_models()
+        
+    except subprocess.TimeoutExpired:
+        print("OpenClaw models command timed out")
+        return get_fallback_models()
+    except (subprocess.CalledProcessError, json.JSONDecodeError, Exception) as e:
+        print(f"Failed to fetch models from OpenClaw: {e}")
+        return get_fallback_models()
+
+def generate_model_alias(model_id: str, model_name: str) -> str:
+    """Generate a short alias for the model."""
+    model_lower = model_id.lower()
+    
+    if "opus" in model_lower:
+        return "opus"
+    elif "sonnet" in model_lower:
+        return "sonnet"
+    elif "haiku" in model_lower:
+        return "haiku"
+    elif "codex" in model_lower or "gpt" in model_lower:
+        return "codex"
+    elif "llama" in model_lower:
+        return "llama"
+    elif "gemini" in model_lower:
+        return "gemini"
+    elif "grok" in model_lower:
+        return "grok"
+    elif "kimi" in model_lower:
+        return "kimi"
+    else:
+        # Use simplified name from the model name/id
+        name_parts = model_name.replace("-", " ").replace("_", " ").split()
+        return "".join(part[:2] for part in name_parts[:3]).lower()
+
+def generate_model_description(model_id: str, model_name: str, model_data: dict) -> str:
+    """Generate a description for the model."""
+    model_lower = model_id.lower()
+    
+    # Use specific descriptions for known model types
+    if "opus" in model_lower:
+        return "Most capable, complex reasoning"
+    elif "sonnet" in model_lower:
+        return "Balanced performance and speed"
+    elif "haiku" in model_lower:
+        return "Fast and cost-efficient"
+    elif "codex" in model_lower or "gpt" in model_lower:
+        return "Optimized for coding tasks"
+    elif "llama" in model_lower:
+        return "Open source model"
+    elif "gemini" in model_lower:
+        return "Google's multimodal model"
+    elif "grok" in model_lower:
+        return "xAI's conversational model"
+    elif "kimi" in model_lower:
+        return "Long context model"
+    else:
+        # Generate description from model data
+        context_window = model_data.get("contextWindow", 0)
+        input_type = model_data.get("input", "text")
+        
+        desc_parts = []
+        if "image" in input_type:
+            desc_parts.append("Multimodal")
+        if context_window > 100000:
+            desc_parts.append("Long context")
+        elif context_window > 32000:
+            desc_parts.append("Extended context")
+        
+        if desc_parts:
+            return " ".join(desc_parts) + " model"
+        else:
+            return model_name
+
+def get_fallback_models():
+    """Return fallback models when OpenClaw is not available."""
+    return [
+        {"id": "anthropic/claude-opus-4-5", "alias": "opus", "description": "Most capable, complex reasoning"},
+        {"id": "anthropic/claude-sonnet-4-20250514", "alias": "sonnet", "description": "Balanced performance and speed"},
+        {"id": "anthropic/claude-3-5-haiku-latest", "alias": "haiku", "description": "Fast and cost-efficient"},
+        {"id": "openai/gpt-4o", "alias": "gpt4o", "description": "OpenAI multimodal model"}
+    ]
 
 
 class GenerateAgentRequest(BaseModel):
