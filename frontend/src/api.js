@@ -316,3 +316,11 @@ export async function deleteAgentConfig(agentId) {
 }
 
 export { API_BASE, WS_URL }
+
+// Generic API object for simple get/post calls
+export const api = {
+  get: (endpoint) => fetchAPI(endpoint, { method: 'GET' }),
+  post: (endpoint, data) => fetchAPI(endpoint, { method: 'POST', body: JSON.stringify(data) }),
+  patch: (endpoint, data) => fetchAPI(endpoint, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (endpoint) => fetchAPI(endpoint, { method: 'DELETE' })
+}
