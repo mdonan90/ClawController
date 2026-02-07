@@ -1,0 +1,397 @@
+/* Stuck Task Monitor Widget */
+.stuck-task-widget {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  z-index: 100;
+}
+
+.widget-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.widget-toggle:hover {
+  background: var(--bg-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stuck-task-widget.has-issues .widget-toggle {
+  background: #fff3cd;
+  border-color: #ffc107;
+  color: #856404;
+}
+
+.stuck-task-widget.has-issues .widget-toggle:hover {
+  background: #ffeaa7;
+}
+
+.monitor-icon {
+  font-size: 16px;
+}
+
+.monitor-label {
+  font-weight: 500;
+}
+
+.issue-badge {
+  background: #dc3545;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* Monitor Modal */
+.stuck-task-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 20px;
+  overflow-y: auto;
+}
+
+.stuck-task-content {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.stuck-task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  border-radius: 12px 12px 0 0;
+}
+
+.stuck-task-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--text-primary);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.close-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Monitor Controls */
+.monitor-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+.check-btn {
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.check-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.check-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.last-check {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* Monitor Stats */
+.monitor-stats {
+  display: flex;
+  gap: 20px;
+  padding: 16px 24px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--accent-color);
+}
+
+/* Stuck Tasks Section */
+.stuck-tasks-section, .offline-agents-section {
+  padding: 20px 24px;
+}
+
+.stuck-tasks-section h3, .offline-agents-section h3 {
+  margin: 0 0 16px 0;
+  color: var(--text-primary);
+  font-size: 16px;
+}
+
+.stuck-tasks-list, .offline-agents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Stuck Task Item */
+.stuck-task-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  transition: border-color 0.2s;
+}
+
+.stuck-task-item:hover {
+  border-color: var(--accent-color);
+}
+
+.task-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.severity-icon {
+  font-size: 14px;
+}
+
+.task-title {
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.task-priority {
+  font-size: 11px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.task-priority.normal {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.task-priority.urgent {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.task-details {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.task-meta {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.task-status {
+  background: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.task-time {
+  color: #f57c00;
+  font-weight: 500;
+}
+
+.task-assignee {
+  margin-bottom: 4px;
+}
+
+.task-id {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+/* Offline Agent Item */
+.offline-agent-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.agent-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agent-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.agent-status {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.agent-tasks {
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* No Issues */
+.no-issues {
+  text-align: center;
+  padding: 40px 24px;
+}
+
+.success-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.no-issues h3 {
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.no-issues p {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Thresholds Info */
+.thresholds-info {
+  padding: 20px 24px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+.thresholds-info h4 {
+  margin: 0 0 16px 0;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.thresholds-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.threshold-column h5 {
+  margin: 0 0 8px 0;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.threshold-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.threshold-status {
+  color: var(--text-secondary);
+}
+
+.threshold-time {
+  color: var(--accent-color);
+  font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .stuck-task-content {
+    margin: 10px;
+    max-height: 95vh;
+  }
+  
+  .monitor-stats {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  
+  .thresholds-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .stuck-task-widget {
+    top: 70px;
+    right: 10px;
+  }
+}

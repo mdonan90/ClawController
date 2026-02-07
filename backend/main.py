@@ -18,6 +18,7 @@ from models import (
     TaskStatus, Priority, AgentRole, AgentStatus,
     RecurringTask, RecurringTaskRun, TaskActivity
 )
+from stuck_task_monitor import run_stuck_task_check, get_monitor_status
 
 app = FastAPI(title="ClawController API", version="2.0.0")
 
@@ -2470,3 +2471,45 @@ async def preview_file(path: str):
     
     # For other files, serve as download/inline
     return FileResponse(path, media_type=mime_type)
+
+# ============ Stuck Task Monitoring ============
+
+@app.get("/api/monitoring/stuck-tasks/check")
+async def check_stuck_tasks():
+    """Run stuck task detection and return results."""
+    try:
+        result = run_stuck_task_check()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Stuck task check failed: {str(e)}")
+
+@app.get("/api/monitoring/stuck-tasks/status")
+async def get_stuck_task_monitor_status():
+    """Get stuck task monitor status and configuration."""
+    try:
+        status = get_monitor_status()
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get monitor status: {str(e)}")
+
+# Background task for periodic stuck task checking
+@app.on_event("startup")
+async def setup_background_monitoring():
+    """Setup background task for periodic stuck task monitoring."""
+    async def periodic_stuck_task_check():
+        """Run stuck task check every 30 minutes."""
+        while True:
+            try:
+                await asyncio.sleep(30 * 60)  # 30 minutes
+                result = run_stuck_task_check()
+                
+                # Only log if there are stuck tasks or notifications sent
+                if result.get("stuck_tasks") or result.get("notifications_sent", 0) > 0:
+                    print(f"Stuck task check: {len(result.get('stuck_tasks', []))} stuck, "
+                          f"{result.get('notifications_sent', 0)} notifications sent")
+                
+            except Exception as e:
+                print(f"Background stuck task check failed: {e}")
+    
+    # Start background task
+    asyncio.create_task(periodic_stuck_task_check())
