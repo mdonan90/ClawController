@@ -79,6 +79,7 @@ class TaskUpdate(BaseModel):
     assignee_id: Optional[str] = None
     reviewer: Optional[str] = None  # agent id or "human" (backwards compatibility)
     reviewer_id: Optional[str] = None  # agent id for reviewer (default: main)
+    agent_id: Optional[str] = None  # agent making the request (for status enforcement)
 
 class CommentCreate(BaseModel):
     content: str
@@ -757,12 +758,18 @@ async def update_task(task_id: str, task_data: TaskUpdate, db: Session = Depends
     if task_data.description is not None:
         task.description = task_data.description
     if task_data.status is not None:
-        # REVIEW GATE ENFORCEMENT: Prevent agents from setting DONE status directly
+        # REVIEW GATE ENFORCEMENT: Only reviewer can set DONE status
         if task_data.status == "DONE":
-            raise HTTPException(
-                status_code=403, 
-                detail="Cannot set status to DONE directly. Tasks must go through REVIEW process. Use POST /api/tasks/{task_id}/review with action='approve' to complete tasks."
-            )
+            # Check if caller is the reviewer
+            caller_id = task_data.agent_id
+            reviewer_id = task.reviewer_id
+            
+            # If no caller specified or caller is not the reviewer, reject
+            if not caller_id or caller_id != reviewer_id:
+                raise HTTPException(
+                    status_code=403, 
+                    detail=f"Only the assigned reviewer ({reviewer_id}) can set status to DONE. Current caller: {caller_id or 'unspecified'}"
+                )
         
         task.status = TaskStatus(task_data.status)
         await log_activity(db, "status_changed", task_id=task.id, description=f"Status: {old_status} → {task_data.status}")
