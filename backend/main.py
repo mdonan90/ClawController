@@ -845,6 +845,7 @@ class ReviewAction(BaseModel):
     action: str  # "approve" or "reject"
     feedback: Optional[str] = None
     reviewer: Optional[str] = None  # For sending to review
+    agent_id: Optional[str] = None  # Agent making the review request (for authorization)
 
 @app.post("/api/tasks/{task_id}/review")
 async def review_task(task_id: str, review_data: ReviewAction, db: Session = Depends(get_db)):
@@ -868,6 +869,16 @@ async def review_task(task_id: str, review_data: ReviewAction, db: Session = Dep
         if task.status != TaskStatus.REVIEW:
             raise HTTPException(status_code=400, detail="Task is not in REVIEW status")
         
+        # AUTHORIZATION CHECK: Only assigned reviewer can approve
+        caller_id = review_data.agent_id
+        reviewer_id = task.reviewer_id
+        
+        if not caller_id or caller_id != reviewer_id:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Only the assigned reviewer ({reviewer_id}) can approve tasks. Current caller: {caller_id or 'unspecified'}"
+            )
+        
         # Validate that the task has a reviewer assigned
         if not task.reviewer_id:
             task.reviewer_id = get_lead_agent_id(db)  # Set default reviewer
@@ -890,6 +901,16 @@ async def review_task(task_id: str, review_data: ReviewAction, db: Session = Dep
         # Reject with feedback and send back to IN_PROGRESS
         if task.status != TaskStatus.REVIEW:
             raise HTTPException(status_code=400, detail="Task is not in REVIEW status")
+        
+        # AUTHORIZATION CHECK: Only assigned reviewer can reject
+        caller_id = review_data.agent_id
+        reviewer_id = task.reviewer_id
+        
+        if not caller_id or caller_id != reviewer_id:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Only the assigned reviewer ({reviewer_id}) can reject tasks. Current caller: {caller_id or 'unspecified'}"
+            )
         
         # Require feedback for rejections to ensure quality feedback
         if not review_data.feedback or not review_data.feedback.strip():
@@ -931,8 +952,11 @@ async def review_task(task_id: str, review_data: ReviewAction, db: Session = Dep
     return {"ok": True, "status": task.status.value}
 
 # Dedicated approve endpoint
+class ApproveTaskRequest(BaseModel):
+    agent_id: Optional[str] = None  # Agent making the approval request (for authorization)
+
 @app.post("/api/tasks/{task_id}/approve")
-async def approve_task(task_id: str, db: Session = Depends(get_db)):
+async def approve_task(task_id: str, approve_data: ApproveTaskRequest, db: Session = Depends(get_db)):
     """Approve a task in REVIEW status and move it to DONE."""
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
@@ -940,6 +964,16 @@ async def approve_task(task_id: str, db: Session = Depends(get_db)):
     
     if task.status != TaskStatus.REVIEW:
         raise HTTPException(status_code=400, detail="Task is not in REVIEW status")
+    
+    # AUTHORIZATION CHECK: Only assigned reviewer can approve
+    caller_id = approve_data.agent_id
+    reviewer_id = task.reviewer_id
+    
+    if not caller_id or caller_id != reviewer_id:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Only the assigned reviewer ({reviewer_id}) can approve tasks. Current caller: {caller_id or 'unspecified'}"
+        )
     
     # Validate that the task has a reviewer assigned
     if not task.reviewer_id:
@@ -966,6 +1000,7 @@ async def approve_task(task_id: str, db: Session = Depends(get_db)):
 # Dedicated reject endpoint
 class RejectTaskRequest(BaseModel):
     feedback: str
+    agent_id: Optional[str] = None  # Agent making the rejection request (for authorization)
 
 @app.post("/api/tasks/{task_id}/reject")
 async def reject_task(task_id: str, reject_data: RejectTaskRequest, db: Session = Depends(get_db)):
@@ -976,6 +1011,16 @@ async def reject_task(task_id: str, reject_data: RejectTaskRequest, db: Session 
     
     if task.status != TaskStatus.REVIEW:
         raise HTTPException(status_code=400, detail="Task is not in REVIEW status")
+    
+    # AUTHORIZATION CHECK: Only assigned reviewer can reject
+    caller_id = reject_data.agent_id
+    reviewer_id = task.reviewer_id
+    
+    if not caller_id or caller_id != reviewer_id:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Only the assigned reviewer ({reviewer_id}) can reject tasks. Current caller: {caller_id or 'unspecified'}"
+        )
     
     # Require feedback for rejections
     if not reject_data.feedback or not reject_data.feedback.strip():
