@@ -42,6 +42,7 @@ class Agent(Base):
     avatar = Column(String(10))  # Emoji
     status = Column(SQLEnum(AgentStatus), default=AgentStatus.IDLE)
     workspace = Column(String(500))
+    token = Column(String(64), nullable=True)  # Agent authentication token
     created_at = Column(DateTime, default=datetime.utcnow)
     
     tasks = relationship("Task", back_populates="assignee", foreign_keys="[Task.assignee_id]")

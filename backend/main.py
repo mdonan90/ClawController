@@ -1,7 +1,7 @@
-from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Annotated
 from pydantic import BaseModel
 from datetime import datetime
 from pathlib import Path
@@ -18,6 +18,19 @@ from models import (
     TaskStatus, Priority, AgentRole, AgentStatus,
     RecurringTask, RecurringTaskRun, TaskActivity
 )
+
+# Agent authentication dependency
+def verify_agent_token(x_agent_token: Annotated[str | None, Header()] = None, db: Session = Depends(get_db)) -> Agent:
+    """Verify X-Agent-Token header and return the authenticated agent."""
+    if not x_agent_token:
+        raise HTTPException(status_code=401, detail="Missing X-Agent-Token header")
+    
+    # Find agent with this token
+    agent = db.query(Agent).filter(Agent.token == x_agent_token).first()
+    if not agent:
+        raise HTTPException(status_code=401, detail="Invalid agent token")
+    
+    return agent
 
 app = FastAPI(title="ClawController API", version="2.0.0")
 
