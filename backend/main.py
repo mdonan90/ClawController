@@ -73,6 +73,10 @@ class AgentResponse(BaseModel):
     description: Optional[str]
     avatar: Optional[str]
     status: str
+    primary_model: Optional[str]
+    fallback_model: Optional[str]
+    current_model: Optional[str]
+    model_failure_count: Optional[int]
     
     class Config:
         from_attributes = True
@@ -2327,6 +2331,7 @@ class CreateAgentRequest(BaseModel):
     name: str
     emoji: str
     model: str
+    fallback_model: Optional[str] = None
     soul: str
     tools: str
     agentsMd: str
@@ -2514,6 +2519,25 @@ class UpdateAgentConfigRequest(BaseModel):
     name: Optional[str] = None
     emoji: Optional[str] = None
     model: Optional[str] = None
+    fallback_model: Optional[str] = None
+
+class AgentModelStatus(BaseModel):
+    agent_id: str
+    primary_model: Optional[str]
+    fallback_model: Optional[str]
+    current_model: Optional[str]
+    model_failure_count: int
+    is_using_fallback: bool
+
+class ModelFailureReport(BaseModel):
+    agent_id: str
+    failed_model: str
+    error_message: str
+    timestamp: datetime
+
+class UpdateAgentModelsRequest(BaseModel):
+    primary_model: Optional[str] = None
+    fallback_model: Optional[str] = None
 
 @app.patch("/api/agents/{agent_id}")
 def update_agent_config(agent_id: str, request: UpdateAgentConfigRequest):
@@ -2601,6 +2625,133 @@ def delete_agent(agent_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to write config: {str(e)}")
     
     return {"ok": True, "message": f"Agent '{agent_id}' removed (workspace preserved)"}
+
+# ============ Agent Model Management ============
+
+@app.get("/api/agents/{agent_id}/model-status", response_model=AgentModelStatus)
+def get_agent_model_status(agent_id: str, db: Session = Depends(get_db)):
+    """Get current model status and configuration for an agent."""
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    
+    is_using_fallback = (agent.current_model == agent.fallback_model and 
+                        agent.fallback_model is not None and 
+                        agent.current_model != agent.primary_model)
+    
+    return AgentModelStatus(
+        agent_id=agent.id,
+        primary_model=agent.primary_model,
+        fallback_model=agent.fallback_model,
+        current_model=agent.current_model or agent.primary_model,
+        model_failure_count=agent.model_failure_count or 0,
+        is_using_fallback=is_using_fallback
+    )
+
+@app.patch("/api/agents/{agent_id}/models")
+async def update_agent_models(agent_id: str, request: UpdateAgentModelsRequest, 
+                             db: Session = Depends(get_db)):
+    """Update agent model configuration."""
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    
+    # Update model fields
+    if request.primary_model is not None:
+        agent.primary_model = request.primary_model
+        # Reset to primary model if we're updating it
+        agent.current_model = request.primary_model
+        agent.model_failure_count = 0
+    
+    if request.fallback_model is not None:
+        agent.fallback_model = request.fallback_model
+    
+    # Log the model update
+    await log_activity(db, "model_updated", agent_id=agent_id, 
+                      description=f"Models updated: primary={request.primary_model}, fallback={request.fallback_model}")
+    
+    db.commit()
+    return {"ok": True, "agent": agent}
+
+@app.post("/api/agents/{agent_id}/model-failure")
+async def report_model_failure(agent_id: str, failure_report: ModelFailureReport, 
+                              db: Session = Depends(get_db)):
+    """Report a model failure and potentially switch to fallback."""
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    
+    # Increment failure count
+    agent.model_failure_count = (agent.model_failure_count or 0) + 1
+    
+    # Check if we should switch to fallback
+    switched_to_fallback = False
+    if (agent.fallback_model and 
+        failure_report.failed_model == agent.primary_model and
+        agent.current_model != agent.fallback_model):
+        
+        agent.current_model = agent.fallback_model
+        switched_to_fallback = True
+        
+        # Notify about fallback switch
+        message = f"""🔄 Model Fallback Activated for {agent.name}
+
+**Primary model failed:** {failure_report.failed_model}
+**Switched to fallback:** {agent.fallback_model}
+**Error:** {failure_report.error_message}
+**Failure count:** {agent.model_failure_count}
+
+**Agent:** {agent.name} ({agent.id})
+
+The agent will continue using the fallback model until manually restored to primary.
+
+View in ClawController: http://localhost:5001"""
+
+        try:
+            subprocess.Popen(
+                ["openclaw", "agent", "--agent", "main", "--message", message],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                cwd=str(Path.home())
+            )
+            print(f"Notified main agent about model fallback for {agent.name}")
+        except Exception as e:
+            print(f"Failed to notify about model fallback: {e}")
+    
+    # Log the failure
+    await log_activity(db, "model_failure", agent_id=agent_id,
+                      description=f"Model failure: {failure_report.failed_model} - {failure_report.error_message}")
+    
+    db.commit()
+    
+    return {
+        "ok": True,
+        "switched_to_fallback": switched_to_fallback,
+        "current_model": agent.current_model,
+        "failure_count": agent.model_failure_count
+    }
+
+@app.post("/api/agents/{agent_id}/restore-primary-model") 
+async def restore_primary_model(agent_id: str, db: Session = Depends(get_db)):
+    """Restore agent to primary model and reset failure count."""
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    
+    old_model = agent.current_model
+    agent.current_model = agent.primary_model
+    agent.model_failure_count = 0
+    
+    await log_activity(db, "model_restored", agent_id=agent_id,
+                      description=f"Model restored: {old_model} → {agent.primary_model}")
+    
+    db.commit()
+    
+    return {
+        "ok": True,
+        "current_model": agent.current_model,
+        "message": f"Agent restored to primary model: {agent.primary_model}"
+    }
 
 
 if __name__ == "__main__":

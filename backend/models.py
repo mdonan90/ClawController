@@ -43,6 +43,10 @@ class Agent(Base):
     status = Column(SQLEnum(AgentStatus), default=AgentStatus.IDLE)
     workspace = Column(String(500))
     token = Column(String(64), nullable=True)  # Agent authentication token
+    primary_model = Column(String(100), nullable=True)  # Primary model name
+    fallback_model = Column(String(100), nullable=True)  # Fallback model name
+    current_model = Column(String(100), nullable=True)  # Currently active model
+    model_failure_count = Column(Integer, default=0)  # Track consecutive failures
     created_at = Column(DateTime, default=datetime.utcnow)
     
     tasks = relationship("Task", back_populates="assignee", foreign_keys="[Task.assignee_id]")

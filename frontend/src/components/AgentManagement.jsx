@@ -25,7 +25,11 @@ const getModelBadge = (modelId) => {
 
 function AgentCard({ agent, onClick }) {
   const status = statusConfig[agent.status] || statusConfig.OFFLINE
-  const modelBadge = getModelBadge(agent.model?.primary || agent.model)
+  const currentModel = agent.current_model || agent.model?.primary || agent.model
+  const modelBadge = getModelBadge(currentModel)
+  const isUsingFallback = (agent.current_model && 
+                           agent.current_model === agent.fallback_model && 
+                           agent.current_model !== agent.primary_model)
   
   return (
     <button className="agent-mgmt-card" onClick={() => onClick(agent.id)}>
@@ -35,6 +39,9 @@ function AgentCard({ agent, onClick }) {
         </div>
         <div className="agent-mgmt-status">
           <span className={`status-dot ${status.dotClass}`} />
+          {isUsingFallback && (
+            <span className="fallback-indicator" title="Using fallback model">⚠️</span>
+          )}
         </div>
       </div>
       <div className="agent-mgmt-info">
@@ -44,10 +51,11 @@ function AgentCard({ agent, onClick }) {
       {modelBadge.alias !== '?' && (
         <div className="agent-mgmt-footer">
           <span 
-            className="agent-mgmt-model-badge"
+            className={`agent-mgmt-model-badge ${isUsingFallback ? 'fallback' : ''}`}
             style={{ background: `${modelBadge.color}20`, color: modelBadge.color }}
+            title={isUsingFallback ? `Fallback: ${currentModel}` : `Primary: ${currentModel}`}
           >
-            {modelBadge.alias}
+            {isUsingFallback ? '⚠️ ' : ''}{modelBadge.alias}
           </span>
         </div>
       )}
