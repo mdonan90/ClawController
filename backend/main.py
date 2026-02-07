@@ -754,7 +754,7 @@ def get_task(task_id: str, db: Session = Depends(get_db)):
     }
 
 @app.patch("/api/tasks/{task_id}")
-async def update_task(task_id: str, task_data: TaskUpdate, db: Session = Depends(get_db)):
+async def update_task(task_id: str, task_data: TaskUpdate, db: Session = Depends(get_db), agent: Agent = Depends(verify_agent_token)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -861,7 +861,7 @@ class ReviewAction(BaseModel):
     agent_id: Optional[str] = None  # Agent making the review request (for authorization)
 
 @app.post("/api/tasks/{task_id}/review")
-async def review_task(task_id: str, review_data: ReviewAction, db: Session = Depends(get_db)):
+async def review_task(task_id: str, review_data: ReviewAction, db: Session = Depends(get_db), agent: Agent = Depends(verify_agent_token)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
