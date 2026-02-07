@@ -93,6 +93,7 @@ class TaskUpdate(BaseModel):
     reviewer: Optional[str] = None  # agent id or "human" (backwards compatibility)
     reviewer_id: Optional[str] = None  # agent id for reviewer (default: main)
     agent_id: Optional[str] = None  # agent making the request (for status enforcement)
+    work_summary: Optional[str] = None  # Required when setting status to REVIEW
 
 class CommentCreate(BaseModel):
     content: str
@@ -771,6 +772,14 @@ async def update_task(task_id: str, task_data: TaskUpdate, db: Session = Depends
     if task_data.description is not None:
         task.description = task_data.description
     if task_data.status is not None:
+        # ACTIVITY LOGGING ENFORCEMENT: Require work_summary when setting status to REVIEW
+        if task_data.status == "REVIEW":
+            if not task_data.work_summary or task_data.work_summary.strip() == "":
+                raise HTTPException(
+                    status_code=400, 
+                    detail="work_summary is required when setting status to REVIEW"
+                )
+        
         # REVIEW GATE ENFORCEMENT: Only reviewer can set DONE status
         if task_data.status == "DONE":
             # Check if caller is the reviewer
@@ -785,7 +794,14 @@ async def update_task(task_id: str, task_data: TaskUpdate, db: Session = Depends
                 )
         
         task.status = TaskStatus(task_data.status)
-        await log_activity(db, "status_changed", task_id=task.id, description=f"Status: {old_status} → {task_data.status}")
+        
+        # Auto-log status change with work_summary if provided
+        activity_message = f"Status: {old_status} → {task_data.status}"
+        if task_data.work_summary and task_data.work_summary.strip():
+            activity_message += f" | {task_data.work_summary.strip()}"
+        
+        await log_activity(db, "status_changed", task_id=task.id, description=activity_message, agent_id=agent.id)
+        
         # Notify if status changed to ASSIGNED
         if task_data.status == "ASSIGNED" and task.assignee_id:
             should_notify_assign = True
@@ -801,6 +817,8 @@ async def update_task(task_id: str, task_data: TaskUpdate, db: Session = Depends
         task.assignee_id = new_assignee
         if task.assignee_id and task.status == TaskStatus.INBOX:
             task.status = TaskStatus.ASSIGNED
+            # Auto-log the automatic status change
+            await log_activity(db, "status_changed", task_id=task.id, description=f"Status: INBOX → ASSIGNED", agent_id=agent.id)
         # Notify if assignee changed to a new agent
         if new_assignee and new_assignee != old_assignee:
             should_notify_assign = True
