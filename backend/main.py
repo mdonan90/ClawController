@@ -139,6 +139,52 @@ class TaskActivityCreate(BaseModel):
     agent_id: str
     message: str
 
+# Helper to notify agent of API rejections
+def notify_api_rejection(agent_id: str, error_message: str, endpoint: str, task_id: str = None, fix_instructions: str = None):
+    """Notify agent when API request is rejected with error and fix instructions."""
+    if not agent_id:
+        return
+    
+    # Generate helpful fix instructions based on error type
+    if not fix_instructions:
+        if "work_summary is required" in error_message:
+            fix_instructions = "Include a work_summary field describing what work was completed when setting status to REVIEW."
+        elif "Missing X-Agent-Token header" in error_message:
+            fix_instructions = "Include the X-Agent-Token header with your agent authentication token."
+        elif "Invalid agent token" in error_message:
+            fix_instructions = "Check that your X-Agent-Token header contains a valid agent token."
+        elif "Only the assigned reviewer" in error_message:
+            fix_instructions = "Only the assigned reviewer can set task status to DONE. Check the reviewer_id field."
+        else:
+            fix_instructions = "Check the API documentation and try again with correct parameters."
+    
+    task_info = f"\n**Task ID:** {task_id}" if task_id else ""
+    
+    message = f"""🚫 API Request Rejected
+    
+**Endpoint:** {endpoint}
+**Error:** {error_message}{task_info}
+
+**How to fix:** {fix_instructions}
+
+**Next steps:**
+1. Review the error message above
+2. Update your request with the correct parameters
+3. Retry the API call
+
+Need help? Check the ClawController documentation or ask for assistance."""
+
+    try:
+        subprocess.Popen(
+            ["openclaw", "agent", "--agent", agent_id, "--message", message],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            cwd=str(Path.home())
+        )
+        print(f"Notified agent {agent_id} of API rejection: {error_message[:50]}...")
+    except Exception as e:
+        print(f"Failed to notify agent {agent_id} of API rejection: {e}")
+
 # Helper to log activity
 async def log_activity(db: Session, activity_type: str, agent_id: str = None, task_id: str = None, description: str = None):
     activity = ActivityLog(
@@ -775,10 +821,15 @@ async def update_task(task_id: str, task_data: TaskUpdate, db: Session = Depends
         # ACTIVITY LOGGING ENFORCEMENT: Require work_summary when setting status to REVIEW
         if task_data.status == "REVIEW":
             if not task_data.work_summary or task_data.work_summary.strip() == "":
-                raise HTTPException(
-                    status_code=400, 
-                    detail="work_summary is required when setting status to REVIEW"
+                error_msg = "work_summary is required when setting status to REVIEW"
+                # Notify agent about the rejection
+                notify_api_rejection(
+                    agent_id=agent.id, 
+                    error_message=error_msg,
+                    endpoint=f"PATCH /api/tasks/{task_id}",
+                    task_id=task_id
                 )
+                raise HTTPException(status_code=400, detail=error_msg)
         
         # REVIEW GATE ENFORCEMENT: Only reviewer can set DONE status
         if task_data.status == "DONE":
@@ -788,10 +839,15 @@ async def update_task(task_id: str, task_data: TaskUpdate, db: Session = Depends
             
             # If no caller specified or caller is not the reviewer, reject
             if not caller_id or caller_id != reviewer_id:
-                raise HTTPException(
-                    status_code=403, 
-                    detail=f"Only the assigned reviewer ({reviewer_id}) can set status to DONE. Current caller: {caller_id or 'unspecified'}"
+                error_msg = f"Only the assigned reviewer ({reviewer_id}) can set status to DONE. Current caller: {caller_id or 'unspecified'}"
+                # Notify agent about the rejection
+                notify_api_rejection(
+                    agent_id=agent.id, 
+                    error_message=error_msg,
+                    endpoint=f"PATCH /api/tasks/{task_id}",
+                    task_id=task_id
                 )
+                raise HTTPException(status_code=403, detail=error_msg)
         
         task.status = TaskStatus(task_data.status)
         
