@@ -84,6 +84,7 @@ class TaskUpdate(BaseModel):
     assignee_id: Optional[str] = None
     reviewer: Optional[str] = None  # agent id or "human" (backwards compatibility)
     reviewer_id: Optional[str] = None  # agent id for reviewer (default: main)
+    agent_id: Optional[str] = None  # agent making the request (for auto-transitions)
 
 class CommentCreate(BaseModel):
     content: str
@@ -743,6 +744,19 @@ async def update_task(task_id: str, task_data: TaskUpdate, db: Session = Depends
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     
+    # AUTO-TRANSITION: ASSIGNED → IN_PROGRESS when assigned agent makes any update
+    auto_transitioned_to_in_progress = False
+    if (task.status == TaskStatus.ASSIGNED and 
+        task.assignee_id and 
+        task_data.agent_id and 
+        task_data.agent_id == task.assignee_id and
+        task_data.status != "ASSIGNED"):  # Don't auto-transition if explicitly setting to ASSIGNED
+        
+        task.status = TaskStatus.IN_PROGRESS
+        auto_transitioned_to_in_progress = True
+        await log_activity(db, "auto_transition", task_id=task.id, agent_id=task_data.agent_id,
+                          description="Auto-transitioned ASSIGNED → IN_PROGRESS (agent started work)")
+    
     # Track if we need to notify agent
     old_assignee = task.assignee_id
     old_status = task.status.value
@@ -1159,20 +1173,13 @@ async def add_task_activity(task_id: str, activity_data: TaskActivityCreate, db:
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     
-    activity = TaskActivity(
-        task_id=task_id,
-        agent_id=activity_data.agent_id,
-        message=activity_data.message
-    )
-    db.add(activity)
-    
     # === AUTO-TRANSITIONS ===
     old_status = task.status
     new_status = None
     
     # 1. ASSIGNED → IN_PROGRESS: First activity from the assigned agent
     if task.status == TaskStatus.ASSIGNED and activity_data.agent_id == task.assignee_id:
-        # Check if this is first activity from the assignee
+        # Check if this is first activity from the assignee (BEFORE adding current activity)
         existing_activity = db.query(TaskActivity).filter(
             TaskActivity.task_id == task_id,
             TaskActivity.agent_id == task.assignee_id
@@ -1180,6 +1187,14 @@ async def add_task_activity(task_id: str, activity_data: TaskActivityCreate, db:
         if not existing_activity:
             task.status = TaskStatus.IN_PROGRESS
             new_status = TaskStatus.IN_PROGRESS
+    
+    # Add the activity AFTER checking for auto-transitions
+    activity = TaskActivity(
+        task_id=task_id,
+        agent_id=activity_data.agent_id,
+        message=activity_data.message
+    )
+    db.add(activity)
     
     # 2. IN_PROGRESS → REVIEW: Completion keywords in message
     if task.status == TaskStatus.IN_PROGRESS:
