@@ -5141,6 +5141,12 @@
   text-decoration-color: var(--accent);
 }
 
+.file-name.no-file {
+  color: var(--muted);
+  text-decoration: none;
+  cursor: default;
+}
+
 .file-actions {
   display: flex;
   align-items: center;

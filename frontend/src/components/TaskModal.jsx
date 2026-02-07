@@ -451,12 +451,13 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
           <div className="modal-section">
             <h3>Deliverables</h3>
             <div className="deliverables-list">
-              {task.checklist
-                .filter(item => item.attachment) // Only show items with files
-                .map((item) => (
-                  <div key={item.id} className="deliverable-file-item">
-                    <div className="file-info">
-                      <span className="file-icon">{getFileIcon(item.attachment.name)}</span>
+              {task.checklist.map((item) => (
+                <div key={item.id} className="deliverable-file-item">
+                  <div className="file-info">
+                    <span className="file-icon">
+                      {item.attachment ? getFileIcon(item.attachment.name) : '📄'}
+                    </span>
+                    {item.attachment ? (
                       <button 
                         className="file-name clickable"
                         onClick={() => handlePreviewFile(item.attachment)}
@@ -464,8 +465,14 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
                       >
                         {item.attachment.name}
                       </button>
-                    </div>
-                    <div className="file-actions">
+                    ) : (
+                      <span className="file-name no-file">
+                        {item.label}
+                      </span>
+                    )}
+                  </div>
+                  <div className="file-actions">
+                    {item.attachment && (
                       <a 
                         href={`/api/files/preview?path=${encodeURIComponent(item.attachment.path)}`}
                         target="_blank" 
@@ -475,20 +482,21 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
                       >
                         <Download size={14} />
                       </a>
-                      <button 
-                        className="file-action-btn delete-btn"
-                        onClick={() => handleRemoveAttachment(item.id)}
-                        title="Delete"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                    )}
+                    <button 
+                      className="file-action-btn delete-btn"
+                      onClick={() => handleRemoveAttachment(item.id)}
+                      title="Delete"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                ))}
+                </div>
+              ))}
               
-              {task.checklist.filter(item => item.attachment).length === 0 && (
+              {task.checklist.length === 0 && (
                 <div className="no-deliverables">
-                  No deliverables uploaded yet.
+                  No deliverables yet.
                 </div>
               )}
             </div>
