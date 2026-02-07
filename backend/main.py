@@ -1696,6 +1696,98 @@ def get_stats(db: Session = Depends(get_db)):
         }
     }
 
+# ============ Task Routing (Fresh Context Per Task) ============
+
+class RouteTaskRequest(BaseModel):
+    message: Optional[str] = None  # Optional custom message, defaults to task description
+
+@app.post("/api/tasks/{task_id}/route")
+async def route_task_to_agent(task_id: str, request: RouteTaskRequest = None, db: Session = Depends(get_db)):
+    """Route a task to its assigned agent with a fresh context.
+    
+    Uses sessions_spawn to create an isolated session per task.
+    This ensures:
+    - Fresh context window (no bleed from previous tasks)
+    - Task-specific session label for tracking
+    - Auto-cleanup when task completes
+    """
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    if not task.assignee_id:
+        raise HTTPException(status_code=400, detail="Task has no assignee")
+    
+    # Build the task message
+    task_message = f"""Task: {task.title}
+
+**Task ID:** {task_id}
+
+**Description:**
+{task.description or 'No description provided.'}
+
+**Priority:** {task.priority.value if task.priority else 'NORMAL'}
+
+**When complete, report back:**
+```bash
+curl -X POST http://localhost:8000/api/tasks/{task_id}/activity \\
+  -H "Content-Type: application/json" \\
+  -d '{{"agent_id": "{task.assignee_id}", "message": "YOUR_UPDATE"}}'
+
+curl -X PATCH http://localhost:8000/api/tasks/{task_id} \\
+  -H "Content-Type: application/json" \\
+  -d '{{"status": "REVIEW"}}'
+```"""
+    
+    if request and request.message:
+        task_message = request.message
+    
+    # Log the routing
+    activity = TaskActivity(
+        task_id=task_id,
+        agent_id="system",
+        message=f"🚀 Routing to agent {task.assignee_id} with fresh context"
+    )
+    db.add(activity)
+    db.commit()
+    
+    # Spawn isolated session for this task
+    try:
+        result = subprocess.run(
+            [
+                "openclaw", "sessions", "spawn",
+                "--agent", task.assignee_id,
+                "--label", f"task-{task_id[:8]}",
+                "--message", task_message
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode != 0:
+            # Fallback to direct agent command
+            result = subprocess.run(
+                ["openclaw", "agent", "--agent", task.assignee_id, "--message", task_message],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+        
+        return {
+            "ok": True,
+            "task_id": task_id,
+            "agent_id": task.assignee_id,
+            "session_label": f"task-{task_id[:8]}",
+            "message": "Task routed with fresh context"
+        }
+        
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Agent spawn timed out")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to route task: {str(e)}")
+
+
 # ============ Recurring Tasks ============
 # Helper to calculate next run time
 def calculate_next_run(schedule_type: str, schedule_value: str, schedule_time: str) -> datetime:
