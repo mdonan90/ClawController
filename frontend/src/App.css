@@ -5664,3 +5664,21 @@
     width: 280px;
   }
 }
+
+.hamburger-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.hamburger-footer svg {
+  color: var(--accent);
+}

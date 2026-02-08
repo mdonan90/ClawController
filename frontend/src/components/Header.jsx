@@ -234,11 +234,20 @@ function HamburgerDrawer({ isOpen, onClose }) {
   const openAgentManagement = useMissionStore((state) => state.openAgentManagement)
   const getUnreadCount = useMissionStore((state) => state.getUnreadCount)
   const toggleNotifications = useMissionStore((state) => state.toggleNotifications)
+  const getStats = useMissionStore((state) => state.getStats)
+  
+  const [now, setNow] = useState(() => formatTime(new Date()))
+  
+  useEffect(() => {
+    const timer = setInterval(() => setNow(formatTime(new Date())), 1000)
+    return () => clearInterval(timer)
+  }, [])
   
   const activeAgents = agents.filter((agent) => agent.status === 'WORKING').length
   const taskQueue = tasks.filter((task) => task.status !== 'DONE').length
   const activeRecurring = recurringTasks.filter((t) => t.is_active).length
   const unreadCount = getUnreadCount()
+  const stats = getStats()
   
   const handleRecurringClick = () => {
     toggleRecurringPanel()
@@ -280,18 +289,23 @@ function HamburgerDrawer({ isOpen, onClose }) {
             <span className="quick-stat-value">{taskQueue}</span>
             <span className="quick-stat-label">Queue</span>
           </div>
+          <div className="quick-stat-divider" />
+          <div className="quick-stat">
+            <span className="quick-stat-value">{stats.completedToday}</span>
+            <span className="quick-stat-label">Done</span>
+          </div>
         </div>
         
         {/* Main Menu */}
         <nav className="hamburger-nav">
           <button className="hamburger-nav-item" onClick={handleAgentMgmtClick}>
             <Bot size={18} />
-            <span>Agents</span>
+            <span>Agent Management</span>
           </button>
           
           <button className="hamburger-nav-item" onClick={handleRecurringClick}>
             <RefreshCw size={18} />
-            <span>Recurring</span>
+            <span>Recurring Tasks</span>
             {activeRecurring > 0 && (
               <span className="hamburger-badge">{activeRecurring}</span>
             )}
@@ -310,6 +324,12 @@ function HamburgerDrawer({ isOpen, onClose }) {
             <span>System Status</span>
           </a>
         </nav>
+        
+        {/* Footer with time */}
+        <div className="hamburger-footer">
+          <Clock size={16} />
+          <span>{now}</span>
+        </div>
       </div>
     </>
   )
