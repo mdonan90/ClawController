@@ -2773,21 +2773,9 @@ def update_openclaw_agent_model(agent_id: str, primary_model: str = None, fallba
 @app.patch("/api/agents/{agent_id}/models")
 async def update_agent_models(agent_id: str, request: UpdateAgentModelsRequest, 
                              db: Session = Depends(get_db)):
-    """Update agent model configuration in both ClawController DB and OpenClaw config."""
-    agent = db.query(Agent).filter(Agent.id == agent_id).first()
-    if not agent:
-        raise HTTPException(status_code=404, detail="Agent not found")
+    """Update agent model configuration directly in OpenClaw config (source of truth)."""
     
-    # Update ClawController database
-    if request.primary_model is not None:
-        agent.primary_model = request.primary_model
-        agent.current_model = request.primary_model
-        agent.model_failure_count = 0
-    
-    if request.fallback_model is not None:
-        agent.fallback_model = request.fallback_model
-    
-    # Update OpenClaw config file (source of truth)
+    # Update OpenClaw config file (source of truth) - this is what matters
     try:
         update_openclaw_agent_model(
             agent_id, 
@@ -2799,12 +2787,22 @@ async def update_agent_models(agent_id: str, request: UpdateAgentModelsRequest,
         print(f"⚠️ Failed to update OpenClaw config: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to update OpenClaw config: {e}")
     
+    # Also update ClawController database if agent exists there (optional sync)
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if agent:
+        if request.primary_model is not None:
+            agent.primary_model = request.primary_model
+            agent.current_model = request.primary_model
+            agent.model_failure_count = 0
+        if request.fallback_model is not None:
+            agent.fallback_model = request.fallback_model
+        db.commit()
+    
     # Log the model update
     await log_activity(db, "model_updated", agent_id=agent_id, 
                       description=f"Models updated: primary={request.primary_model}, fallback={request.fallback_model}")
     
-    db.commit()
-    return {"ok": True, "agent": agent, "openclaw_updated": True}
+    return {"ok": True, "agent_id": agent_id, "openclaw_updated": True}
 
 @app.post("/api/agents/{agent_id}/model-failure")
 async def report_model_failure(agent_id: str, failure_report: ModelFailureReport, 

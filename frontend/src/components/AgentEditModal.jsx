@@ -83,19 +83,26 @@ export default function AgentEditModal({ agentId }) {
   if (!agent) return null
   
   const handleSave = async () => {
+    console.log('🔵 handleSave called, activeTab:', activeTab, 'model:', model, 'fallbackModel:', fallbackModel)
     try {
       if (activeTab === 'general') {
+        console.log('🔵 Saving general tab...')
         await updateAgent(agentId, { name, emoji, model })
       } else if (activeTab === 'models') {
+        console.log('🔵 Saving models tab...')
         await updateAgentModels(agentId, { model, fallbackModel })
+        console.log('🔵 Models saved, refreshing agents...')
         // Refresh agents list to reflect model changes in UI
         await refreshAgents()
+        console.log('🔵 Agents refreshed')
       } else {
+        console.log('🔵 Saving files tab...')
         await updateAgentFiles(agentId, files)
       }
       setHasChanges(false)
+      console.log('✅ Save complete')
     } catch (err) {
-      console.error('Save failed:', err)
+      console.error('❌ Save failed:', err)
     }
   }
   
@@ -148,8 +155,10 @@ export default function AgentEditModal({ agentId }) {
   }
   
   const handleFieldChange = (setter) => (e) => {
+    console.log('🟢 Field changed:', e.target.value)
     setter(e.target.value)
     setHasChanges(true)
+    console.log('🟢 hasChanges set to true')
   }
   
   const handleFileChange = (field) => (e) => {
@@ -405,10 +414,13 @@ export default function AgentEditModal({ agentId }) {
               </button>
               <button
                 className="primary-button"
-                onClick={handleSave}
+                onClick={() => {
+                  console.log('🟡 Save button clicked! hasChanges:', hasChanges, 'loading:', loading)
+                  handleSave()
+                }}
                 disabled={loading || !hasChanges}
               >
-                {loading ? 'Saving...' : 'Save Changes'}
+                {loading ? 'Saving...' : hasChanges ? 'Save Changes' : 'No Changes'}
               </button>
             </>
           )}
