@@ -389,8 +389,14 @@ export default function Header() {
             <div className="logo-title header-title">CLAWCONTROLLER</div>
           </div>
           
-          <div className={`system-status-pill system-status-pill--${systemStatus} mobile-status`}>
-            <span className="system-status-dot" />
+          <div className="mobile-status-container">
+            <button 
+              className={`system-status-pill system-status-pill--${systemStatus} mobile-status`}
+              onClick={() => setShowStatus(!showStatus)}
+            >
+              <span className="system-status-dot" />
+            </button>
+            {showStatus && <SystemStatusDropdown onClose={() => setShowStatus(false)} />}
           </div>
           
           <button 

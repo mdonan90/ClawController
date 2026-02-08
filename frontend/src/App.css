@@ -5617,3 +5617,27 @@
   font-size: 16px;
   font-weight: 500;
 }
+
+/* Mobile status dropdown positioning */
+@media (max-width: 768px) {
+  .mobile-status-container {
+    position: relative;
+  }
+  
+  .mobile-status {
+    cursor: pointer;
+    border: 1px solid var(--border);
+  }
+  
+  .mobile-status:hover {
+    background: var(--bg-tertiary);
+  }
+  
+  .mobile-status-container .status-dropdown {
+    position: fixed;
+    top: 60px;
+    right: 60px;
+    left: auto;
+    width: 280px;
+  }
+}
