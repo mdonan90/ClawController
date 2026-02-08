@@ -5482,8 +5482,14 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   z-index: 998;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .hamburger-drawer {
@@ -5491,29 +5497,42 @@
   top: 0;
   left: 0;
   bottom: 0;
-  width: 280px;
-  max-width: 85vw;
+  width: 75vw;
+  max-width: 320px;
   background: var(--bg-primary);
   border-right: 1px solid var(--border);
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.3);
   z-index: 999;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  animation: slideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
 }
 
 .hamburger-drawer-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 16px;
+  gap: 12px;
+  padding: 20px 16px;
   border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.hamburger-logo {
+  font-size: 24px;
+  line-height: 1;
 }
 
 .hamburger-drawer-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text);
+  flex: 1;
 }
 
 .hamburger-close {
@@ -5521,77 +5540,93 @@
   border: none;
   color: var(--muted);
   cursor: pointer;
-  padding: 6px;
+  padding: 8px;
   display: flex;
-  border-radius: 4px;
+  border-radius: 6px;
+  transition: all 0.2s;
 }
 
 .hamburger-close:hover {
   color: var(--text);
-  background: var(--bg-secondary);
+  background: var(--bg-tertiary);
 }
 
-.hamburger-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+.hamburger-quick-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
   padding: 16px;
+  background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
 }
 
-.hamburger-stat {
+.quick-stat {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
-.hamburger-stat-value {
-  font-size: 20px;
+.quick-stat-value {
+  font-size: 24px;
   font-weight: 700;
   color: var(--accent);
+  line-height: 1;
 }
 
-.hamburger-stat-label {
-  font-size: 10px;
-  text-transform: uppercase;
+.quick-stat-label {
+  font-size: 11px;
   color: var(--muted);
-  text-align: center;
-  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.hamburger-actions {
-  display: flex;
-  flex-direction: column;
-  padding: 8px 0;
+.quick-stat-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border);
+}
+
+.hamburger-nav {
   flex: 1;
+  padding: 8px 0;
+  overflow-y: auto;
 }
 
-.hamburger-action-item {
+.hamburger-nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: 16px;
+  padding: 16px 20px;
   background: none;
   border: none;
-  border-bottom: 1px solid var(--border);
   color: var(--text);
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: all 0.2s;
   text-align: left;
+  text-decoration: none;
+  width: 100%;
+  border-left: 3px solid transparent;
 }
 
-.hamburger-action-item:hover {
+.hamburger-nav-item:hover {
   background: var(--bg-secondary);
+  border-left-color: var(--accent);
 }
 
-.hamburger-action-item svg {
-  color: var(--muted);
+.hamburger-nav-item:active {
+  background: var(--bg-tertiary);
+}
+
+.hamburger-nav-item svg {
+  color: var(--accent);
   flex-shrink: 0;
 }
 
-.hamburger-action-item span {
+.hamburger-nav-item span:first-of-type {
   flex: 1;
 }
 
@@ -5599,23 +5634,11 @@
   background: var(--accent);
   color: white;
   font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
+  font-weight: 700;
+  padding: 3px 8px;
   border-radius: 12px;
-  min-width: 20px;
+  min-width: 22px;
   text-align: center;
-}
-
-.hamburger-time {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 16px;
-  border-top: 1px solid var(--border);
-  color: var(--muted);
-  font-size: 16px;
-  font-weight: 500;
 }
 
 /* Mobile status dropdown positioning */
