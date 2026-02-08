@@ -2698,21 +2698,48 @@ def delete_agent(agent_id: str):
 
 @app.get("/api/agents/{agent_id}/model-status", response_model=AgentModelStatus)
 def get_agent_model_status(agent_id: str, db: Session = Depends(get_db)):
-    """Get current model status and configuration for an agent."""
-    agent = db.query(Agent).filter(Agent.id == agent_id).first()
-    if not agent:
-        raise HTTPException(status_code=404, detail="Agent not found")
+    """Get current model status and configuration for an agent from OpenClaw config."""
+    # Read from OpenClaw config (source of truth)
+    config = read_openclaw_config()
+    if not config:
+        raise HTTPException(status_code=500, detail="OpenClaw config not found")
     
-    is_using_fallback = (agent.current_model == agent.fallback_model and 
-                        agent.fallback_model is not None and 
-                        agent.current_model != agent.primary_model)
+    agents_list = config.get("agents", {}).get("list", [])
+    openclaw_agent = None
+    for a in agents_list:
+        if a.get("id") == agent_id:
+            openclaw_agent = a
+            break
+    
+    if not openclaw_agent:
+        raise HTTPException(status_code=404, detail="Agent not found in OpenClaw config")
+    
+    # Extract model info from OpenClaw config
+    model_config = openclaw_agent.get("model", {})
+    if isinstance(model_config, str):
+        # Simple model string
+        primary_model = model_config
+        fallback_model = None
+    else:
+        primary_model = model_config.get("primary", "")
+        fallbacks = model_config.get("fallbacks", [])
+        fallback_model = fallbacks[0] if fallbacks else None
+    
+    # Check ClawController DB for runtime state (failure count, current model)
+    db_agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    model_failure_count = db_agent.model_failure_count if db_agent else 0
+    current_model = db_agent.current_model if db_agent else primary_model
+    
+    is_using_fallback = (current_model == fallback_model and 
+                        fallback_model is not None and 
+                        current_model != primary_model)
     
     return AgentModelStatus(
-        agent_id=agent.id,
-        primary_model=agent.primary_model,
-        fallback_model=agent.fallback_model,
-        current_model=agent.current_model or agent.primary_model,
-        model_failure_count=agent.model_failure_count or 0,
+        agent_id=agent_id,
+        primary_model=primary_model,
+        fallback_model=fallback_model,
+        current_model=current_model or primary_model,
+        model_failure_count=model_failure_count,
         is_using_fallback=is_using_fallback
     )
 
