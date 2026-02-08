@@ -1,4 +1,4 @@
-import { Bell, Clock, TrendingUp, TrendingDown, CheckCircle2, BarChart3, X, RefreshCw, Activity, Wifi, WifiOff, AlertTriangle, Bot } from 'lucide-react'
+import { Bell, Clock, TrendingUp, TrendingDown, CheckCircle2, BarChart3, X, RefreshCw, Activity, Wifi, WifiOff, AlertTriangle, Bot, Menu } from 'lucide-react'
 import { useEffect, useState, useRef } from 'react'
 import { useMissionStore } from '../store/useMissionStore'
 import { formatDistanceToNow } from 'date-fns'
