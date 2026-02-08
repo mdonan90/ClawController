@@ -17,17 +17,17 @@ import logging
 
 # Configuration
 STUCK_TASK_THRESHOLDS = {
-    TaskStatus.ASSIGNED: timedelta(hours=24),     # 24 hours in ASSIGNED
-    TaskStatus.IN_PROGRESS: timedelta(hours=48),  # 48 hours in IN_PROGRESS  
-    TaskStatus.REVIEW: timedelta(hours=24),       # 24 hours in REVIEW
-    TaskStatus.INBOX: timedelta(hours=72),        # 72 hours in INBOX (low priority)
+    TaskStatus.ASSIGNED: timedelta(hours=2),      # 2 hours in ASSIGNED
+    TaskStatus.IN_PROGRESS: timedelta(hours=6),   # 6 hours in IN_PROGRESS (max)
+    TaskStatus.REVIEW: timedelta(hours=4),        # 4 hours in REVIEW
+    TaskStatus.INBOX: timedelta(hours=6),         # 6 hours in INBOX
 }
 
 URGENT_TASK_THRESHOLDS = {
-    TaskStatus.ASSIGNED: timedelta(hours=12),     # 12 hours for urgent tasks
-    TaskStatus.IN_PROGRESS: timedelta(hours=24),  # 24 hours for urgent tasks
-    TaskStatus.REVIEW: timedelta(hours=12),       # 12 hours for urgent tasks
-    TaskStatus.INBOX: timedelta(hours=24),        # 24 hours for urgent tasks
+    TaskStatus.ASSIGNED: timedelta(hours=1),      # 1 hour for urgent tasks
+    TaskStatus.IN_PROGRESS: timedelta(hours=2),   # 2 hours for urgent tasks
+    TaskStatus.REVIEW: timedelta(hours=1),        # 1 hour for urgent tasks
+    TaskStatus.INBOX: timedelta(hours=2),         # 2 hours for urgent tasks
 }
 
 AGENT_OFFLINE_THRESHOLD = timedelta(hours=6)      # Agent considered offline after 6 hours
