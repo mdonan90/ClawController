@@ -2716,30 +2716,95 @@ def get_agent_model_status(agent_id: str, db: Session = Depends(get_db)):
         is_using_fallback=is_using_fallback
     )
 
+def get_openclaw_config_path():
+    """Get the path to OpenClaw config file."""
+    return Path.home() / ".openclaw" / "openclaw.json"
+
+def read_openclaw_config():
+    """Read the OpenClaw configuration file."""
+    config_path = get_openclaw_config_path()
+    if not config_path.exists():
+        return None
+    with open(config_path, 'r') as f:
+        return json.load(f)
+
+def write_openclaw_config(config):
+    """Write the OpenClaw configuration file."""
+    config_path = get_openclaw_config_path()
+    with open(config_path, 'w') as f:
+        json.dump(config, f, indent=2)
+
+def update_openclaw_agent_model(agent_id: str, primary_model: str = None, fallback_model: str = None):
+    """Update an agent's model in the OpenClaw config file."""
+    config = read_openclaw_config()
+    if not config:
+        raise Exception("OpenClaw config not found")
+    
+    agents_list = config.get("agents", {}).get("list", [])
+    agent_found = False
+    
+    for agent in agents_list:
+        if agent.get("id") == agent_id:
+            agent_found = True
+            # Initialize model object if it doesn't exist
+            if "model" not in agent:
+                agent["model"] = {}
+            
+            # Update primary model
+            if primary_model:
+                agent["model"]["primary"] = primary_model
+            
+            # Update fallback model
+            if fallback_model:
+                agent["model"]["fallbacks"] = [fallback_model]
+            elif fallback_model == "":
+                # Empty string means remove fallbacks
+                agent["model"].pop("fallbacks", None)
+            
+            break
+    
+    if not agent_found:
+        raise Exception(f"Agent {agent_id} not found in OpenClaw config")
+    
+    # Write updated config
+    write_openclaw_config(config)
+    return True
+
 @app.patch("/api/agents/{agent_id}/models")
 async def update_agent_models(agent_id: str, request: UpdateAgentModelsRequest, 
                              db: Session = Depends(get_db)):
-    """Update agent model configuration."""
+    """Update agent model configuration in both ClawController DB and OpenClaw config."""
     agent = db.query(Agent).filter(Agent.id == agent_id).first()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
     
-    # Update model fields
+    # Update ClawController database
     if request.primary_model is not None:
         agent.primary_model = request.primary_model
-        # Reset to primary model if we're updating it
         agent.current_model = request.primary_model
         agent.model_failure_count = 0
     
     if request.fallback_model is not None:
         agent.fallback_model = request.fallback_model
     
+    # Update OpenClaw config file (source of truth)
+    try:
+        update_openclaw_agent_model(
+            agent_id, 
+            primary_model=request.primary_model,
+            fallback_model=request.fallback_model
+        )
+        print(f"✅ Updated OpenClaw config for agent {agent_id}: primary={request.primary_model}, fallback={request.fallback_model}")
+    except Exception as e:
+        print(f"⚠️ Failed to update OpenClaw config: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update OpenClaw config: {e}")
+    
     # Log the model update
     await log_activity(db, "model_updated", agent_id=agent_id, 
                       description=f"Models updated: primary={request.primary_model}, fallback={request.fallback_model}")
     
     db.commit()
-    return {"ok": True, "agent": agent}
+    return {"ok": True, "agent": agent, "openclaw_updated": True}
 
 @app.post("/api/agents/{agent_id}/model-failure")
 async def report_model_failure(agent_id: str, failure_report: ModelFailureReport, 
