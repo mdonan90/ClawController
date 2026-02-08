@@ -5682,3 +5682,150 @@
 .hamburger-footer svg {
   color: var(--accent);
 }
+
+/* ===== MOBILE PHASE 2: KANBAN TABS + LAYOUT ===== */
+
+@media (max-width: 768px) {
+  /* Single column layout */
+  .main {
+    grid-template-columns: 1fr;
+    padding: 0;
+  }
+  
+  /* Hide sidebar on mobile (Phase 3 will add drawer) */
+  .sidebar {
+    display: none;
+  }
+  
+  /* Kanban full width */
+  .kanban {
+    padding: 12px;
+  }
+  
+  /* Mobile tab navigation */
+  .kanban-mobile-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 12px 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .kanban-mobile-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .kanban-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  
+  .kanban-tab:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+  }
+  
+  .kanban-tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  
+  .kanban-tab-label {
+    font-size: 12px;
+  }
+  
+  .kanban-tab-badge {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    min-width: 20px;
+    text-align: center;
+  }
+  
+  .kanban-tab:not(.active) .kanban-tab-badge {
+    background: var(--accent);
+    color: white;
+  }
+  
+  /* Kanban grid - single column */
+  .kanban-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  /* Hide all columns except active */
+  .kanban-column {
+    display: none;
+  }
+  
+  .kanban-column.active {
+    display: flex;
+    width: 100%;
+  }
+  
+  /* Adjust column header for mobile */
+  .kanban-column-header {
+    padding: 12px;
+  }
+  
+  .kanban-column-header h3 {
+    font-size: 16px;
+  }
+  
+  /* Hide kanban toolbar on very small screens */
+  .kanban-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .add-task-button {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+  
+  /* Stack live feed below kanban */
+  .live-feed {
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  .kanban {
+    padding: 8px;
+  }
+  
+  .kanban-mobile-tabs {
+    gap: 6px;
+  }
+  
+  .kanban-tab {
+    padding: 8px 12px;
+  }
+  
+  .kanban-tab-label {
+    font-size: 11px;
+  }
+}

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { statusColors, statusOrder, useMissionStore } from '../store/useMissionStore'
 import KanbanColumn from './KanbanColumn'
 import TaskCard from './TaskCard'
+import { useIsMobile } from '../hooks/useMediaQuery'
 
 export default function KanbanBoard() {
   const tasks = useMissionStore((state) => state.tasks)
@@ -14,6 +15,8 @@ export default function KanbanBoard() {
   const agents = useMissionStore((state) => state.agents)
   
   const [activeTask, setActiveTask] = useState(null)
+  const [activeColumn, setActiveColumn] = useState('INBOX')
+  const isMobile = useIsMobile()
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -149,15 +152,39 @@ export default function KanbanBoard() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
+        {/* Mobile Tab Navigation */}
+        {isMobile && (
+          <div className="kanban-mobile-tabs">
+            {statusOrder.map((status) => {
+              const columnTasks = filteredTasks.filter((task) => task.status === status)
+              return (
+                <button
+                  key={status}
+                  className={`kanban-tab ${activeColumn === status ? 'active' : ''}`}
+                  onClick={() => setActiveColumn(status)}
+                >
+                  <span className="kanban-tab-label">{status}</span>
+                  {columnTasks.length > 0 && (
+                    <span className="kanban-tab-badge">{columnTasks.length}</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        )}
+        
         <div className="kanban-grid">
           {statusOrder.map((status) => {
             const columnTasks = filteredTasks.filter((task) => task.status === status)
+            const isActiveOnMobile = !isMobile || status === activeColumn
+            
             return (
               <KanbanColumn
                 key={status}
                 title={status}
                 tasks={columnTasks}
                 color={statusColors[status]}
+                className={isActiveOnMobile ? 'active' : ''}
               />
             )
           })}
