@@ -5399,6 +5399,10 @@
   .header {
     padding: 16px;
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
   }
   
   .hamburger-button {
@@ -5412,6 +5416,7 @@
     justify-content: center;
     border-radius: 8px;
     transition: background 0.2s;
+    order: 3; /* Far right */
   }
   
   .hamburger-button:hover {
@@ -5419,9 +5424,10 @@
   }
   
   .logo-mobile {
-    flex: 1;
-    justify-content: center;
+    display: flex;
+    align-items: center;
     gap: 8px;
+    order: 1; /* Far left */
   }
   
   .logo-mobile .logo-title {
@@ -5434,6 +5440,8 @@
   
   .mobile-status {
     padding: 8px 12px;
+    order: 2; /* Between logo and hamburger */
+    margin-left: auto; /* Push to right side */
   }
   
   .mobile-status .system-status-dot {
