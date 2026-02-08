@@ -1,4 +1,4 @@
-import { Bell, Clock, TrendingUp, TrendingDown, CheckCircle2, BarChart3, X, RefreshCw, Activity, Wifi, WifiOff, AlertTriangle, Bot, Menu } from 'lucide-react'
+import { Bell, Clock, TrendingUp, TrendingDown, CheckCircle2, BarChart3, X, RefreshCw, Activity, Wifi, WifiOff, AlertTriangle, Bot, Menu, Users } from 'lucide-react'
 import { useEffect, useState, useRef } from 'react'
 import { useMissionStore } from '../store/useMissionStore'
 import { formatDistanceToNow } from 'date-fns'
@@ -226,7 +226,7 @@ function SystemStatusDropdown({ onClose }) {
 }
 
 // Mobile Hamburger Drawer
-function HamburgerDrawer({ isOpen, onClose }) {
+function HamburgerDrawer({ isOpen, onClose, onOpenAgentDrawer }) {
   const agents = useMissionStore((state) => state.agents)
   const tasks = useMissionStore((state) => state.tasks)
   const recurringTasks = useMissionStore((state) => state.recurringTasks)
@@ -256,6 +256,15 @@ function HamburgerDrawer({ isOpen, onClose }) {
   
   const handleAgentMgmtClick = () => {
     openAgentManagement()
+    onClose()
+  }
+
+  const handleAgentsClick = () => {
+    if (onOpenAgentDrawer) {
+      onOpenAgentDrawer()
+    } else {
+      openAgentManagement()
+    }
     onClose()
   }
   
@@ -298,9 +307,14 @@ function HamburgerDrawer({ isOpen, onClose }) {
         
         {/* Main Menu */}
         <nav className="hamburger-nav">
+          <button className="hamburger-nav-item" onClick={handleAgentsClick}>
+            <Users size={18} />
+            <span>Agents</span>
+          </button>
+          
           <button className="hamburger-nav-item" onClick={handleAgentMgmtClick}>
             <Bot size={18} />
-            <span>Agent Management</span>
+            <span>Manage Agents</span>
           </button>
           
           <button className="hamburger-nav-item" onClick={handleRecurringClick}>
@@ -335,7 +349,7 @@ function HamburgerDrawer({ isOpen, onClose }) {
   )
 }
 
-export default function Header() {
+export default function Header({ onOpenAgentDrawer }) {
   const agents = useMissionStore((state) => state.agents)
   const tasks = useMissionStore((state) => state.tasks)
   const recurringTasks = useMissionStore((state) => state.recurringTasks)
@@ -417,7 +431,8 @@ export default function Header() {
           
           <HamburgerDrawer 
             isOpen={hamburgerOpen} 
-            onClose={() => setHamburgerOpen(false)} 
+            onClose={() => setHamburgerOpen(false)}
+            onOpenAgentDrawer={onOpenAgentDrawer}
           />
         </>
       ) : (

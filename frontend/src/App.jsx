@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 import clawLogo from './assets/clawcontroller-logo.jpg'
 import AgentManagement from './components/AgentManagement'
@@ -8,6 +8,7 @@ import ChatWidget from './components/ChatWidget'
 import Header from './components/Header'
 import KanbanBoard from './components/KanbanBoard'
 import LiveFeed from './components/LiveFeed'
+import MobileAgentDrawer from './components/MobileAgentDrawer'
 import NewTaskModal from './components/NewTaskModal'
 import RecurringTasksPanel from './components/RecurringTasksPanel'
 import TaskModal from './components/TaskModal'
@@ -52,6 +53,7 @@ function App() {
   const isInitialized = useMissionStore((state) => state.isInitialized)
   const error = useMissionStore((state) => state.error)
   const wsConnected = useMissionStore((state) => state.wsConnected)
+  const [mobileAgentDrawerOpen, setMobileAgentDrawerOpen] = useState(false)
 
   useEffect(() => {
     // Initialize data on mount
@@ -84,7 +86,7 @@ function App() {
 
   return (
     <div className="app">
-      <Header />
+      <Header onOpenAgentDrawer={() => setMobileAgentDrawerOpen(true)} />
       <main className="main">
         <AgentSidebar />
         <KanbanBoard />
@@ -92,6 +94,10 @@ function App() {
           <LiveFeed />
         </div>
       </main>
+      <MobileAgentDrawer 
+        isOpen={mobileAgentDrawerOpen} 
+        onClose={() => setMobileAgentDrawerOpen(false)} 
+      />
       <TaskModal />
       <AnnouncementModal />
       <NewTaskModal />

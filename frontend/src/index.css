@@ -699,3 +699,19 @@ button {
   color: var(--text-primary);
   border: 1px solid var(--border);
 }
+
+/* Mobile Phase 3 - Fullscreen Modals */
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding: 0 !important;
+  }
+  
+  .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+}
