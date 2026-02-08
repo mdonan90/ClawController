@@ -6174,3 +6174,22 @@
     min-height: 48px;
   }
 }
+
+/* Primary action in hamburger menu */
+.hamburger-nav-item-primary {
+  background: var(--accent) !important;
+  color: white !important;
+  font-weight: 600;
+}
+
+.hamburger-nav-item-primary svg {
+  color: white !important;
+}
+
+.hamburger-nav-item-primary:hover {
+  background: var(--accent-hover) !important;
+}
+
+.hamburger-nav-item-primary:active {
+  background: var(--accent-hover) !important;
+}

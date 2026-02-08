@@ -1,4 +1,4 @@
-import { Bell, Clock, TrendingUp, TrendingDown, CheckCircle2, BarChart3, X, RefreshCw, Activity, Wifi, WifiOff, AlertTriangle, Bot, Menu, Users } from 'lucide-react'
+import { Bell, Clock, TrendingUp, TrendingDown, CheckCircle2, BarChart3, X, RefreshCw, Activity, Wifi, WifiOff, AlertTriangle, Bot, Menu, Users, Plus } from 'lucide-react'
 import { useEffect, useState, useRef } from 'react'
 import { useMissionStore } from '../store/useMissionStore'
 import { formatDistanceToNow } from 'date-fns'
@@ -227,27 +227,20 @@ function SystemStatusDropdown({ onClose }) {
 
 // Mobile Hamburger Drawer
 function HamburgerDrawer({ isOpen, onClose, onOpenAgentDrawer }) {
-  const agents = useMissionStore((state) => state.agents)
-  const tasks = useMissionStore((state) => state.tasks)
   const recurringTasks = useMissionStore((state) => state.recurringTasks)
   const toggleRecurringPanel = useMissionStore((state) => state.toggleRecurringPanel)
   const openAgentManagement = useMissionStore((state) => state.openAgentManagement)
+  const openNewTask = useMissionStore((state) => state.openNewTask)
   const getUnreadCount = useMissionStore((state) => state.getUnreadCount)
   const toggleNotifications = useMissionStore((state) => state.toggleNotifications)
-  const getStats = useMissionStore((state) => state.getStats)
   
-  const [now, setNow] = useState(() => formatTime(new Date()))
-  
-  useEffect(() => {
-    const timer = setInterval(() => setNow(formatTime(new Date())), 1000)
-    return () => clearInterval(timer)
-  }, [])
-  
-  const activeAgents = agents.filter((agent) => agent.status === 'WORKING').length
-  const taskQueue = tasks.filter((task) => task.status !== 'DONE').length
   const activeRecurring = recurringTasks.filter((t) => t.is_active).length
   const unreadCount = getUnreadCount()
-  const stats = getStats()
+  
+  const handleNewTaskClick = () => {
+    openNewTask()
+    onClose()
+  }
   
   const handleRecurringClick = () => {
     toggleRecurringPanel()
@@ -281,40 +274,22 @@ function HamburgerDrawer({ isOpen, onClose, onOpenAgentDrawer }) {
       <div className="hamburger-drawer">
         <div className="hamburger-drawer-header">
           <span className="hamburger-logo">🦞</span>
-          <h3>ClawController</h3>
+          <h3>Menu</h3>
           <button className="hamburger-close" onClick={onClose}>
             <X size={20} />
           </button>
         </div>
         
-        {/* Quick Stats */}
-        <div className="hamburger-quick-stats">
-          <div className="quick-stat">
-            <span className="quick-stat-value">{activeAgents}</span>
-            <span className="quick-stat-label">Active</span>
-          </div>
-          <div className="quick-stat-divider" />
-          <div className="quick-stat">
-            <span className="quick-stat-value">{taskQueue}</span>
-            <span className="quick-stat-label">Queue</span>
-          </div>
-          <div className="quick-stat-divider" />
-          <div className="quick-stat">
-            <span className="quick-stat-value">{stats.completedToday}</span>
-            <span className="quick-stat-label">Done</span>
-          </div>
-        </div>
-        
-        {/* Main Menu */}
+        {/* Actions Menu */}
         <nav className="hamburger-nav">
           <button className="hamburger-nav-item" onClick={handleAgentsClick}>
             <Users size={18} />
             <span>Agents</span>
           </button>
           
-          <button className="hamburger-nav-item" onClick={handleAgentMgmtClick}>
-            <Bot size={18} />
-            <span>Manage Agents</span>
+          <button className="hamburger-nav-item hamburger-nav-item-primary" onClick={handleNewTaskClick}>
+            <Plus size={18} />
+            <span>New Task</span>
           </button>
           
           <button className="hamburger-nav-item" onClick={handleRecurringClick}>
@@ -333,17 +308,16 @@ function HamburgerDrawer({ isOpen, onClose, onOpenAgentDrawer }) {
             )}
           </button>
           
+          <button className="hamburger-nav-item" onClick={handleAgentMgmtClick}>
+            <Bot size={18} />
+            <span>Agent Management</span>
+          </button>
+          
           <a href="/status" className="hamburger-nav-item" onClick={onClose}>
             <Activity size={18} />
             <span>System Status</span>
           </a>
         </nav>
-        
-        {/* Footer with time */}
-        <div className="hamburger-footer">
-          <Clock size={16} />
-          <span>{now}</span>
-        </div>
       </div>
     </>
   )
