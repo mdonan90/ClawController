@@ -16,6 +16,7 @@ export default function AgentEditModal({ agentId }) {
   const updateAgentFiles = useMissionStore((s) => s.updateAgentFiles)
   const getAgentFiles = useMissionStore((s) => s.getAgentFiles)
   const deleteAgent = useMissionStore((s) => s.deleteAgent)
+  const refreshAgents = useMissionStore((s) => s.refreshAgents)
   
   const agent = agents.find((a) => a.id === agentId)
   
@@ -87,6 +88,8 @@ export default function AgentEditModal({ agentId }) {
         await updateAgent(agentId, { name, emoji, model })
       } else if (activeTab === 'models') {
         await updateAgentModels(agentId, { model, fallbackModel })
+        // Refresh agents list to reflect model changes in UI
+        await refreshAgents()
       } else {
         await updateAgentFiles(agentId, files)
       }
@@ -106,6 +109,14 @@ export default function AgentEditModal({ agentId }) {
       })
     })
     if (!response.ok) throw new Error('Failed to update models')
+    
+    // Reload model status to reflect changes
+    const statusRes = await fetch(`/api/agents/${agentId}/model-status`)
+    if (statusRes.ok) {
+      const statusData = await statusRes.json()
+      setModelStatus(statusData)
+    }
+    
     return response.json()
   }
   
