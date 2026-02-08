@@ -2,7 +2,7 @@
 
 .status-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  background: var(--bg-primary);
   padding: 20px;
 }
 
@@ -11,7 +11,7 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 24px;
-  background: white;
+  background: var(--bg-secondary);
   padding: 16px 24px;
   border-radius: 12px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -21,7 +21,7 @@
   margin: 0;
   font-size: 24px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .back-button {
@@ -29,10 +29,10 @@
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
@@ -40,7 +40,7 @@
 
 .back-button:hover {
   background: #f1f5f9;
-  color: #475569;
+  color: var(--text-primary);
   border-color: #cbd5e1;
 }
 
@@ -84,7 +84,7 @@
 
 .last-refresh {
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .status-loading {
@@ -93,7 +93,7 @@
   align-items: center;
   justify-content: center;
   padding: 80px 20px;
-  background: white;
+  background: var(--bg-secondary);
   border-radius: 12px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -110,7 +110,7 @@
 
 /* Health Overview */
 .health-overview {
-  background: white;
+  background: var(--bg-secondary);
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 24px;
@@ -135,7 +135,7 @@
 .health-text p {
   margin: 0;
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .health-stats {
@@ -151,14 +151,14 @@
   display: block;
   font-size: 24px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-primary);
   line-height: 1;
 }
 
 .health-stat-label {
   display: block;
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-secondary);
   margin-top: 4px;
   font-weight: 500;
 }
@@ -172,9 +172,9 @@
 }
 
 .status-card {
-  background: white;
+  background: var(--bg-secondary);
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   overflow: hidden;
 }
@@ -201,7 +201,7 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .status-actions-header {
@@ -214,10 +214,10 @@
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
@@ -225,7 +225,7 @@
 
 .action-button-small:hover {
   background: #f1f5f9;
-  color: #475569;
+  color: var(--text-primary);
 }
 
 .status-badge {
@@ -273,21 +273,21 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px;
-  background: #f8fafc;
+  background: var(--bg-tertiary);
   border-radius: 8px;
   border: 1px solid #f1f5f9;
 }
 
 .status-metric-label {
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
 .status-metric-value {
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .status-metric-value.error {
@@ -305,10 +305,10 @@
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  color: #475569;
+  color: var(--text-primary);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
@@ -385,7 +385,7 @@
 .agent-status-label {
   font-size: 12px;
   font-weight: 500;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .agent-list {
@@ -393,7 +393,7 @@
   overflow-y: auto;
   border: 1px solid #f1f5f9;
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--bg-tertiary);
 }
 
 .agent-item {
@@ -419,7 +419,7 @@
 .agent-name {
   font-size: 14px;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--text-primary);
   margin-bottom: 2px;
 }
 
@@ -455,7 +455,7 @@
 .task-status-item {
   text-align: center;
   padding: 16px 8px;
-  background: #f8fafc;
+  background: var(--bg-tertiary);
   border: 1px solid #f1f5f9;
   border-radius: 8px;
 }
@@ -464,7 +464,7 @@
   display: block;
   font-size: 18px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-primary);
   line-height: 1;
   margin-bottom: 4px;
 }
@@ -476,7 +476,7 @@
 .task-status-label {
   font-size: 11px;
   font-weight: 500;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 /* Monitor Stats */
@@ -492,14 +492,14 @@
   flex-direction: column;
   align-items: center;
   padding: 12px;
-  background: #f8fafc;
+  background: var(--bg-tertiary);
   border-radius: 6px;
   border: 1px solid #f1f5f9;
 }
 
 .monitor-stat-label {
   font-size: 11px;
-  color: #64748b;
+  color: var(--text-secondary);
   margin-bottom: 4px;
   font-weight: 500;
   text-align: center;
@@ -508,7 +508,7 @@
 .monitor-stat-value {
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 /* Stuck Tasks */
@@ -544,7 +544,7 @@
 
 .stuck-task-title {
   font-weight: 500;
-  color: #1e293b;
+  color: var(--text-primary);
   flex: 1;
   font-size: 14px;
 }
@@ -565,7 +565,7 @@
 
 .stuck-task-details {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .stuck-task-meta {
@@ -580,7 +580,7 @@
 
 .stuck-task-assignee {
   font-weight: 500;
-  color: #475569;
+  color: var(--text-primary);
 }
 
 .no-stuck-tasks {
@@ -593,7 +593,7 @@
 
 .no-stuck-tasks p {
   margin: 8px 0 0 0;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -607,12 +607,12 @@
 .threshold-column h4 {
   margin: 0 0 12px 0;
   font-size: 14px;
-  color: #1e293b;
+  color: var(--text-primary);
   font-weight: 600;
 }
 
 .threshold-list {
-  background: #f8fafc;
+  background: var(--bg-tertiary);
   border: 1px solid #f1f5f9;
   border-radius: 8px;
   overflow: hidden;
@@ -632,12 +632,12 @@
 }
 
 .threshold-status {
-  color: #64748b;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
 .threshold-time {
-  color: #1e293b;
+  color: var(--text-primary);
   font-weight: 600;
 }
 

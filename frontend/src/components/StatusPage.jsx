@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, Clock, Activity, Server, Users, Tasks, Zap } from 'lucide-react'
+import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, Clock, Activity, Server, Users, Clipboard, Zap } from 'lucide-react'
 import { api } from '../api'
 import { useMissionStore } from '../store/useMissionStore'
 import { formatTimeAgo, formatDuration, formatUptime } from '../utils/time'
@@ -307,7 +307,7 @@ export default function StatusPage() {
         <div className="status-card">
           <div className="status-card-header">
             <div className="status-card-title">
-              <Tasks size={20} />
+              <Clipboard size={20} />
               <h3>Task Overview</h3>
             </div>
             <div className={`status-badge ${stuckTasks.length > 0 ? 'status-badge--warning' : 'status-badge--healthy'}`}>
