@@ -225,8 +225,107 @@ function SystemStatusDropdown({ onClose }) {
   )
 }
 
-// Hamburger Drawer removed - simplified mobile UI
-// Function removed - simplified mobile UI
+// Mobile Hamburger Drawer
+function HamburgerDrawer({ isOpen, onClose }) {
+  const agents = useMissionStore((state) => state.agents)
+  const tasks = useMissionStore((state) => state.tasks)
+  const recurringTasks = useMissionStore((state) => state.recurringTasks)
+  const toggleRecurringPanel = useMissionStore((state) => state.toggleRecurringPanel)
+  const openAgentManagement = useMissionStore((state) => state.openAgentManagement)
+  const getUnreadCount = useMissionStore((state) => state.getUnreadCount)
+  const toggleNotifications = useMissionStore((state) => state.toggleNotifications)
+  const getStats = useMissionStore((state) => state.getStats)
+  
+  const [now, setNow] = useState(() => formatTime(new Date()))
+  
+  useEffect(() => {
+    const timer = setInterval(() => setNow(formatTime(new Date())), 1000)
+    return () => clearInterval(timer)
+  }, [])
+  
+  const activeAgents = agents.filter((agent) => agent.status === 'WORKING').length
+  const taskQueue = tasks.filter((task) => task.status !== 'DONE').length
+  const activeRecurring = recurringTasks.filter((t) => t.is_active).length
+  const unreadCount = getUnreadCount()
+  const stats = getStats()
+  
+  const handleRecurringClick = () => {
+    toggleRecurringPanel()
+    onClose()
+  }
+  
+  const handleAgentMgmtClick = () => {
+    openAgentManagement()
+    onClose()
+  }
+  
+  const handleNotificationsClick = () => {
+    toggleNotifications()
+    onClose()
+  }
+  
+  if (!isOpen) return null
+  
+  return (
+    <>
+      <div className="hamburger-overlay" onClick={onClose} />
+      <div className="hamburger-drawer">
+        <div className="hamburger-drawer-header">
+          <h3>Menu</h3>
+          <button className="hamburger-close" onClick={onClose}>
+            <X size={24} />
+          </button>
+        </div>
+        
+        {/* Stats Section */}
+        <div className="hamburger-stats">
+          <div className="hamburger-stat">
+            <span className="hamburger-stat-value">{activeAgents}</span>
+            <span className="hamburger-stat-label">Agents Active</span>
+          </div>
+          <div className="hamburger-stat">
+            <span className="hamburger-stat-value">{taskQueue}</span>
+            <span className="hamburger-stat-label">Tasks in Queue</span>
+          </div>
+          <div className="hamburger-stat">
+            <span className="hamburger-stat-value">{stats.completedToday}</span>
+            <span className="hamburger-stat-label">Done Today</span>
+          </div>
+        </div>
+        
+        {/* Actions */}
+        <div className="hamburger-actions">
+          <button className="hamburger-action-item" onClick={handleRecurringClick}>
+            <RefreshCw size={20} />
+            <span>Recurring Tasks</span>
+            {activeRecurring > 0 && (
+              <span className="hamburger-badge">{activeRecurring}</span>
+            )}
+          </button>
+          
+          <button className="hamburger-action-item" onClick={handleNotificationsClick}>
+            <Bell size={20} />
+            <span>Notifications</span>
+            {unreadCount > 0 && (
+              <span className="hamburger-badge">{unreadCount}</span>
+            )}
+          </button>
+          
+          <button className="hamburger-action-item" onClick={handleAgentMgmtClick}>
+            <Bot size={20} />
+            <span>Agent Management</span>
+          </button>
+        </div>
+        
+        {/* Time Display */}
+        <div className="hamburger-time">
+          <Clock size={16} />
+          <span>{now}</span>
+        </div>
+      </div>
+    </>
+  )
+}
 
 export default function Header() {
   const agents = useMissionStore((state) => state.agents)
