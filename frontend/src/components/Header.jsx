@@ -343,6 +343,7 @@ export default function Header() {
   const [now, setNow] = useState(() => formatTime(new Date()))
   const [showStats, setShowStats] = useState(false)
   const [showStatus, setShowStatus] = useState(false)
+  const [hamburgerOpen, setHamburgerOpen] = useState(false)
   
   const isMobile = useIsMobile()
 
