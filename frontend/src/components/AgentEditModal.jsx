@@ -169,8 +169,8 @@ export default function AgentEditModal({ agentId }) {
   console.log('🟡 AgentEditModal rendering for agent:', agentId)
   
   return (
-    <div className="modal-overlay agent-edit-overlay" onClick={closeEditingAgent}>
-      <div className="modal agent-edit-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay agent-edit-overlay" onClick={closeEditingAgent} onTouchEnd={(e) => { if (e.target === e.currentTarget) closeEditingAgent() }}>
+      <div className="modal agent-edit-modal" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div>
             <span className="modal-label">Edit Agent</span>
@@ -230,7 +230,20 @@ export default function AgentEditModal({ agentId }) {
                 <label>Model</label>
                 <select
                   value={model}
-                  onChange={handleFieldChange(setModel)}
+                  onChange={(e) => {
+                    console.log('🔵 Model select changed:', e.target.value)
+                    setModel(e.target.value)
+                    setHasChanges(true)
+                    console.log('🔵 hasChanges forced to true')
+                  }}
+                  onBlur={(e) => {
+                    // iOS Safari may not fire onChange properly
+                    if (e.target.value !== model) {
+                      console.log('🔵 Model select blur - value changed:', e.target.value)
+                      setModel(e.target.value)
+                      setHasChanges(true)
+                    }
+                  }}
                   className="agent-edit-select"
                 >
                   <option value="">Select a model...</option>
@@ -413,19 +426,19 @@ export default function AgentEditModal({ agentId }) {
                 Cancel
               </button>
               <button
+                type="button"
                 className="primary-button"
                 onClick={(e) => {
                   e.preventDefault()
+                  e.stopPropagation()
                   console.log('🟡 Save button clicked! hasChanges:', hasChanges, 'loading:', loading)
-                  if (!loading && hasChanges) handleSave()
-                }}
-                onTouchEnd={(e) => {
-                  e.preventDefault()
-                  console.log('🟡 Save button touched! hasChanges:', hasChanges, 'loading:', loading)
-                  if (!loading && hasChanges) handleSave()
+                  if (!loading && hasChanges) {
+                    // Use setTimeout to ensure it fires on iOS Safari
+                    setTimeout(() => handleSave(), 0)
+                  }
                 }}
                 disabled={loading || !hasChanges}
-                style={{ touchAction: 'manipulation' }}
+                style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
               >
                 {loading ? 'Saving...' : hasChanges ? 'Save Changes' : 'No Changes'}
               </button>
