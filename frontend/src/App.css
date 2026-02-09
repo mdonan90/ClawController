@@ -207,7 +207,10 @@
   padding: 20px;
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
-  height: fit-content;
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
+  max-height: calc(100vh - 180px);
 }
 
 .sidebar-header {
@@ -265,6 +268,9 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .agent-card {
