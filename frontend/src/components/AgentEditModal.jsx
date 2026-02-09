@@ -414,11 +414,18 @@ export default function AgentEditModal({ agentId }) {
               </button>
               <button
                 className="primary-button"
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault()
                   console.log('🟡 Save button clicked! hasChanges:', hasChanges, 'loading:', loading)
-                  handleSave()
+                  if (!loading && hasChanges) handleSave()
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault()
+                  console.log('🟡 Save button touched! hasChanges:', hasChanges, 'loading:', loading)
+                  if (!loading && hasChanges) handleSave()
                 }}
                 disabled={loading || !hasChanges}
+                style={{ touchAction: 'manipulation' }}
               >
                 {loading ? 'Saving...' : hasChanges ? 'Save Changes' : 'No Changes'}
               </button>

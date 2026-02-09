@@ -905,6 +905,8 @@
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .chat-widget {
