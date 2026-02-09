@@ -209,8 +209,9 @@
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 160px);
-  overflow: hidden;
+  min-height: 400px;
+  max-height: calc(100vh - 140px);
+  overflow: visible;
 }
 
 .sidebar-header {
