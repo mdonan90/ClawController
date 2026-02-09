@@ -321,7 +321,12 @@ export default function AgentEditModal({ agentId }) {
                     <label>Primary Model</label>
                     <select
                       value={model}
-                      onChange={handleFieldChange(setModel)}
+                      onChange={(e) => {
+                        console.log('🔵 Models tab - Primary model changed:', e.target.value)
+                        setModel(e.target.value)
+                        setHasChanges(true)
+                        console.log('🔵 Models tab - hasChanges set to true')
+                      }}
                       className="agent-edit-select"
                     >
                       <option value="">Select primary model...</option>
@@ -340,7 +345,12 @@ export default function AgentEditModal({ agentId }) {
                     <label>Fallback Model</label>
                     <select
                       value={fallbackModel}
-                      onChange={handleFieldChange(setFallbackModel)}
+                      onChange={(e) => {
+                        console.log('🔵 Models tab - Fallback model changed:', e.target.value)
+                        setFallbackModel(e.target.value)
+                        setHasChanges(true)
+                        console.log('🔵 Models tab - hasChanges set to true')
+                      }}
                       className="agent-edit-select"
                     >
                       <option value="">No fallback model</option>
