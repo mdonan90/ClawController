@@ -168,6 +168,13 @@ export default function AgentEditModal({ agentId }) {
   
   console.log('🟡 AgentEditModal rendering for agent:', agentId)
   
+  // Debug state for mobile testing - shows on screen
+  const [debugLog, setDebugLog] = useState([])
+  const addDebug = (msg) => {
+    console.log('DEBUG:', msg)
+    setDebugLog(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${msg}`])
+  }
+  
   return (
     <div className="modal-overlay agent-edit-overlay" onClick={closeEditingAgent} onTouchEnd={(e) => { if (e.target === e.currentTarget) closeEditingAgent() }}>
       <div className="modal agent-edit-modal" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
@@ -231,15 +238,13 @@ export default function AgentEditModal({ agentId }) {
                 <select
                   value={model}
                   onChange={(e) => {
-                    console.log('🔵 Model select changed:', e.target.value)
+                    addDebug(`SELECT onChange: ${e.target.value}`)
                     setModel(e.target.value)
                     setHasChanges(true)
-                    console.log('🔵 hasChanges forced to true')
                   }}
                   onBlur={(e) => {
-                    // iOS Safari may not fire onChange properly
-                    if (e.target.value !== model) {
-                      console.log('🔵 Model select blur - value changed:', e.target.value)
+                    addDebug(`SELECT onBlur: ${e.target.value}`)
+                    if (e.target.value && e.target.value !== model) {
                       setModel(e.target.value)
                       setHasChanges(true)
                     }
@@ -253,6 +258,20 @@ export default function AgentEditModal({ agentId }) {
                     </option>
                   ))}
                 </select>
+              </div>
+              
+              {/* Debug panel - visible on screen */}
+              <div style={{ 
+                marginTop: '12px', 
+                padding: '8px', 
+                background: '#1a1a2e', 
+                borderRadius: '8px',
+                fontSize: '11px',
+                fontFamily: 'monospace',
+                color: '#0f0'
+              }}>
+                <div><strong>DEBUG:</strong> hasChanges={String(hasChanges)} | model={model?.slice(-20)}</div>
+                {debugLog.map((log, i) => <div key={i}>{log}</div>)}
               </div>
             </>
           ) : activeTab === 'models' ? (
@@ -431,10 +450,14 @@ export default function AgentEditModal({ agentId }) {
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  console.log('🟡 Save button clicked! hasChanges:', hasChanges, 'loading:', loading)
+                  addDebug(`SAVE clicked! hasChanges=${hasChanges} loading=${loading}`)
                   if (!loading && hasChanges) {
-                    // Use setTimeout to ensure it fires on iOS Safari
-                    setTimeout(() => handleSave(), 0)
+                    addDebug('Calling handleSave...')
+                    setTimeout(() => {
+                      handleSave().then(() => addDebug('Save complete!')).catch(err => addDebug(`Save error: ${err}`))
+                    }, 0)
+                  } else {
+                    addDebug('Save blocked - no changes or loading')
                   }
                 }}
                 disabled={loading || !hasChanges}
