@@ -209,8 +209,9 @@
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
-  min-height: 400px;
-  max-height: calc(100vh - 180px);
+  min-height: 500px;
+  max-height: calc(100vh - 160px);
+  align-self: start;
 }
 
 .sidebar-header {
@@ -271,6 +272,28 @@
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+  padding-bottom: 8px;
+  /* Ensure scrollbar is visible on touch devices */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.agent-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.agent-list::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+}
+
+.agent-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.agent-list::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
 
 .agent-card {
