@@ -22,6 +22,8 @@ HEALTH_CHECK_TIMEOUT = 10   # Timeout for health check commands
 MAX_RESTART_ATTEMPTS = 3    # Max restart attempts before giving up
 RESTART_COOLDOWN = timedelta(minutes=5)  # Wait before retry after multiple failures
 NOTIFICATION_COOLDOWN = timedelta(minutes=15)  # Don't spam crash notifications
+STARTUP_DELAY = 30          # Seconds to wait after crash before watchdog restarts (lets LaunchAgent self-heal first)
+RESTART_VERIFY_DELAY = 15   # Seconds to wait after restart before verifying health
 STATE_FILE = Path(__file__).parent.parent / "data" / "gateway_watchdog_state.json"
 
 class GatewayWatchdog:
@@ -125,8 +127,8 @@ class GatewayWatchdog:
             stdout, stderr = await result.communicate()
             
             if result.returncode == 0:
-                # Wait a moment for gateway to fully start
-                await asyncio.sleep(5)
+                # Wait for gateway to fully start before verifying
+                await asyncio.sleep(RESTART_VERIFY_DELAY)
                 
                 # Verify it's actually running
                 is_healthy, status_msg = await self.check_gateway_health()
@@ -281,6 +283,18 @@ Gateway is now healthy and operational."""
         restart_attempts = 0
         
         if self.state["consecutive_failures"] <= MAX_RESTART_ATTEMPTS:
+            # Wait before attempting our own restart — gives the LaunchAgent time to self-heal
+            # so we don't fight each other with competing SIGTERMs
+            logging.info(f"Waiting {STARTUP_DELAY}s startup delay before watchdog restart attempt...")
+            await asyncio.sleep(STARTUP_DELAY)
+            
+            # Check if LaunchAgent already recovered on its own
+            already_healthy, _ = await self.check_gateway_health()
+            if already_healthy:
+                logging.info("Gateway self-healed during startup delay — skipping watchdog restart")
+                await self.handle_recovery()
+                return
+            
             restart_attempts = 1
             restart_success, restart_msg = await self.restart_gateway()
             
@@ -289,7 +303,7 @@ Gateway is now healthy and operational."""
                 # Send recovery notification
                 await self.notify_recovery({
                     "recovery_time": datetime.utcnow().isoformat(),
-                    "downtime_minutes": 1.0,  # Approximate
+                    "downtime_minutes": round(STARTUP_DELAY / 60, 1),
                     "recovery_method": "Auto-restart",
                     "total_restarts": self.state["restart_count"]
                 })
@@ -405,7 +419,9 @@ Gateway is now healthy and operational."""
                 "health_check_timeout": HEALTH_CHECK_TIMEOUT,
                 "max_restart_attempts": MAX_RESTART_ATTEMPTS,
                 "restart_cooldown_minutes": RESTART_COOLDOWN.total_seconds() / 60,
-                "notification_cooldown_minutes": NOTIFICATION_COOLDOWN.total_seconds() / 60
+                "notification_cooldown_minutes": NOTIFICATION_COOLDOWN.total_seconds() / 60,
+                "startup_delay_seconds": STARTUP_DELAY,
+                "restart_verify_delay_seconds": RESTART_VERIFY_DELAY
             }
         }
 
