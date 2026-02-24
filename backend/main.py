@@ -802,7 +802,7 @@ def get_task(task_id: str, db: Session = Depends(get_db)):
                 "id": c.id,
                 "content": c.content,
                 "agent_id": c.agent_id,
-                "agent": {"id": c.agent.id, "name": c.agent.name, "avatar": c.agent.avatar},
+                "agent": {"id": c.agent.id, "name": c.agent.name, "avatar": c.agent.avatar} if c.agent else None,
                 "created_at": c.created_at.isoformat()
             } for c in task.comments
         ],
