@@ -1,4 +1,5 @@
 #!/bin/bash
+export HOME=/home/claw-controller
 # ClawController - Start Script
 # Starts both backend and frontend services
 

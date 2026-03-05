@@ -1,5 +1,7 @@
-import { Users, Bot, Plus } from 'lucide-react'
+import { Users, Bot, Plus, Settings, LogOut } from 'lucide-react'
 import { useMissionStore } from '../store/useMissionStore'
+import { useNavigate } from 'react-router-dom'
+import { clearStoredApiKey } from '../api'
 
 const roleClasses = {
   LEAD: 'badge badge-lead',
@@ -16,11 +18,20 @@ const statusConfig = {
 }
 
 export default function AgentSidebar() {
+  const navigate = useNavigate()
   const agents = useMissionStore((state) => state.agents)
   const selectedAgentId = useMissionStore((state) => state.selectedAgentId)
   const toggleAgentFilter = useMissionStore((state) => state.toggleAgentFilter)
   const openAgentManagement = useMissionStore((state) => state.openAgentManagement)
   const activeAgents = agents.filter((agent) => agent.status === 'WORKING').length
+
+  const handleChangeApiKey = () => {
+    if (confirm('Change API Key? You will be logged out and asked to enter a new key.')) {
+      clearStoredApiKey()
+      navigate('/login')
+      window.location.reload()
+    }
+  }
 
   // Show empty state when no agents exist
   if (agents.length === 0) {
@@ -57,6 +68,21 @@ export default function AgentSidebar() {
               <li>Agents work together on your projects</li>
             </ul>
           </div>
+        </div>
+
+        <div className="sidebar-footer" style={{ marginTop: 'auto', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
+          <button
+            className="agent-card"
+            onClick={handleChangeApiKey}
+            style={{ gridTemplateColumns: '32px 1fr', alignItems: 'center', height: 'auto', padding: '10px 14px' }}
+          >
+            <div className="agent-avatar" style={{ width: '32px', height: '32px', background: 'var(--bg-secondary)', color: 'var(--muted)' }}>
+              <Settings size={16} />
+            </div>
+            <div className="agent-info">
+              <div className="agent-name" style={{ fontSize: '13px' }}>Manage API Key</div>
+            </div>
+          </button>
         </div>
       </aside>
     )
@@ -113,6 +139,21 @@ export default function AgentSidebar() {
             </button>
           )
         })}
+      </div>
+
+      <div className="sidebar-footer" style={{ marginTop: 'auto', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
+        <button
+          className="agent-card"
+          onClick={handleChangeApiKey}
+          style={{ gridTemplateColumns: '32px 1fr', alignItems: 'center', height: 'auto', padding: '10px 14px' }}
+        >
+          <div className="agent-avatar" style={{ width: '32px', height: '32px', background: 'var(--bg-secondary)', color: 'var(--muted)' }}>
+            <Settings size={16} />
+          </div>
+          <div className="agent-info">
+            <div className="agent-name" style={{ fontSize: '13px' }}>Manage API Key</div>
+          </div>
+        </button>
       </div>
     </aside>
   )

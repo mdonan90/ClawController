@@ -1,9 +1,10 @@
 from sqlalchemy import Column, String, Text, DateTime, Boolean, ForeignKey, Enum as SQLEnum, Integer
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from datetime import datetime
 import enum
 import uuid
+import bcrypt
 
 Base = declarative_base()
 
@@ -48,6 +49,31 @@ class Agent(Base):
     current_model = Column(String(100), nullable=True)  # Currently active model
     model_failure_count = Column(Integer, default=0)  # Track consecutive failures
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    def set_token(self, token: str):
+        """Hash and set the agent authentication token."""
+        if token:
+            salt = bcrypt.gensalt()
+            hashed = bcrypt.hashpw(token.encode('utf-8'), salt)
+            self.token = hashed.decode('utf-8')
+
+    def verify_token(self, token: str) -> bool:
+        """Verify the agent authentication token."""
+        if not self.token:
+            return False
+        try:
+            return bcrypt.checkpw(token.encode('utf-8'), self.token.encode('utf-8'))
+        except Exception:
+            return False
+
+    @validates('token')
+    def validate_token(self, key, value):
+        """Ensure the token is hashed before storing."""
+        if value and not (value.startswith('$2b$') or value.startswith('$2a$')):
+            salt = bcrypt.gensalt()
+            hashed = bcrypt.hashpw(value.encode('utf-8'), salt)
+            return hashed.decode('utf-8')
+        return value
     
     tasks = relationship("Task", back_populates="assignee", foreign_keys="[Task.assignee_id]")
     reviewed_tasks = relationship("Task", back_populates="reviewer_agent", foreign_keys="[Task.reviewer_id]")

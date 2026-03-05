@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import './App.css'
+import { getStoredApiKey } from './api'
 import clawLogo from './assets/clawcontroller-logo.jpg'
 import AgentManagement from './components/AgentManagement'
 import AgentSidebar from './components/AgentSidebar'
@@ -44,6 +46,7 @@ function ErrorScreen({ error, onRetry }) {
 }
 
 function App() {
+  const navigate = useNavigate()
   const initialize = useMissionStore((state) => state.initialize)
   const connectWebSocket = useMissionStore((state) => state.connectWebSocket)
   const disconnectWebSocket = useMissionStore((state) => state.disconnectWebSocket)
@@ -54,6 +57,12 @@ function App() {
   const wsConnected = useMissionStore((state) => state.wsConnected)
 
   useEffect(() => {
+    // Check for API Key
+    if (!getStoredApiKey()) {
+      navigate('/login')
+      return
+    }
+
     // Initialize data on mount
     initialize()
     
