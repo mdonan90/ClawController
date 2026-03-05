@@ -30,6 +30,14 @@ const mentionsUser = (text) => {
          lowerText.includes('@owner')
 }
 
+// Resolve default chat/orchestrator agent without hardcoding "main"
+const getDefaultAgent = (agents = []) => {
+  if (!agents || agents.length === 0) return null
+  return agents.find(a => a.role === 'LEAD') ||
+         agents.find(a => a.id === 'main') ||
+         agents[0]
+}
+
 // Transform API agent to frontend format
 const transformAgent = (apiAgent) => ({
   id: apiAgent.id,
@@ -213,7 +221,7 @@ export const useMissionStore = create((set, get) => ({
   editingAgentId: null,
   selectedAgentId: null,
   selectedRecurringTaskId: null,
-  currentAgentId: 'main', // The "logged in" agent
+  currentAgentId: null, // The "logged in" agent (resolved from available agents)
   
   // ============ Initialization ============
   initialize: async () => {
@@ -230,8 +238,12 @@ export const useMissionStore = create((set, get) => ({
         api.fetchRecurringTasks().catch(() => []), // Don't fail if recurring endpoint doesn't exist yet
       ])
       
+      const transformedAgents = agentsData.map(transformAgent)
+      const defaultAgent = getDefaultAgent(transformedAgents)
+
       set({
-        agents: agentsData.map(transformAgent),
+        agents: transformedAgents,
+        currentAgentId: defaultAgent?.id || null,
         tasks: tasksData.map(transformTask),
         recurringTasks: recurringData,
         squadMessages: chatData.map(transformChatMessage),
@@ -255,7 +267,16 @@ export const useMissionStore = create((set, get) => ({
   refreshAgents: async () => {
     try {
       const agentsData = await api.fetchAgentsWithOpenClaw()
-      set({ agents: agentsData.map(transformAgent) })
+      const transformedAgents = agentsData.map(transformAgent)
+      const defaultAgent = getDefaultAgent(transformedAgents)
+
+      set((state) => {
+        const currentStillExists = state.currentAgentId && transformedAgents.some(a => a.id === state.currentAgentId)
+        return {
+          agents: transformedAgents,
+          currentAgentId: currentStillExists ? state.currentAgentId : (defaultAgent?.id || null),
+        }
+      })
     } catch (error) {
       console.error('Failed to refresh agents:', error)
     }
@@ -674,10 +695,22 @@ export const useMissionStore = create((set, get) => ({
       }
     }
     
-    // Determine target agent
-    const targetAgentId = mentions.length === 1 ? mentions[0].id : 'main'
-    const targetAgent = agents.find(a => a.id === targetAgentId) || 
-      { id: 'main', name: 'Main Agent', avatar: '🤖', color: '#E07B3C' }
+    // Determine target agent (prefer explicit mention, otherwise configured lead/default)
+    const defaultAgent = getDefaultAgent(agents)
+    const targetAgentId = mentions.length === 1
+      ? mentions[0].id
+      : (defaultAgent?.id || null)
+
+    if (!targetAgentId) {
+      throw new Error('No agents are configured. Import at least one agent before using Agent Chat.')
+    }
+
+    const targetAgent = agents.find(a => a.id === targetAgentId) || {
+      id: targetAgentId,
+      name: defaultAgent?.name || targetAgentId,
+      avatar: defaultAgent?.avatar || '🤖',
+      color: defaultAgent?.color || '#E07B3C'
+    }
     
     // 1. Immediately add user message
     const userMessage = {

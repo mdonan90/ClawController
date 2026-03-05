@@ -154,11 +154,44 @@ async def log_activity(db: Session, activity_type: str, agent_id: str = None, ta
         }
     })
 
-# ============ Lead Agent Helper ============
-def get_lead_agent_id(db: Session) -> str:
-    """Get the ID of the lead agent (role=LEAD). Falls back to 'main' if none found."""
+# ============ Lead/Default Agent Helpers ============
+def get_configured_openclaw_agent_ids() -> list[str]:
+    """Return agent IDs from ~/.openclaw/openclaw.json (empty list on failure)."""
+    home = Path.home()
+    config_path = home / ".openclaw" / "openclaw.json"
+
+    if not config_path.exists():
+        return []
+
+    try:
+        with open(config_path) as f:
+            config = json.load(f)
+        agents_list = config.get("agents", {}).get("list", [])
+        return [a.get("id") for a in agents_list if a.get("id")]
+    except Exception:
+        return []
+
+
+def get_default_agent_id(db: Session) -> str | None:
+    """Best-effort default agent: LEAD -> 'main' -> first configured -> first DB agent."""
     lead = db.query(Agent).filter(Agent.role == AgentRole.LEAD).first()
-    return lead.id if lead else "main"
+    if lead:
+        return lead.id
+
+    configured_ids = get_configured_openclaw_agent_ids()
+    if "main" in configured_ids:
+        return "main"
+    if configured_ids:
+        return configured_ids[0]
+
+    first_agent = db.query(Agent).order_by(Agent.created_at.asc()).first()
+    return first_agent.id if first_agent else None
+
+
+def get_lead_agent_id(db: Session) -> str:
+    """Get lead/default agent ID. Falls back to 'main' for backward compatibility only."""
+    return get_default_agent_id(db) or "main"
+
 
 def get_lead_agent(db: Session) -> Agent:
     """Get the lead agent object. Returns None if no agents exist."""
@@ -1525,10 +1558,27 @@ async def send_to_agent(data: SendToAgentRequest, db: Session = Depends(get_db))
     """Send a message to an OpenClaw agent and get the response."""
     agent_id = data.agent_id
     message = data.message
-    
+
     if not agent_id or not message:
         raise HTTPException(status_code=400, detail="agent_id and message are required")
-    
+
+    # Validate target agent before routing to OpenClaw CLI.
+    configured_ids = get_configured_openclaw_agent_ids()
+    valid_ids = set(configured_ids) if configured_ids else {a.id for a in db.query(Agent).all()}
+
+    if not valid_ids:
+        raise HTTPException(
+            status_code=503,
+            detail="No configured agents found. Import agents in AGENTS first."
+        )
+
+    if agent_id not in valid_ids:
+        suggested = get_default_agent_id(db)
+        detail = f'Unknown agent id "{agent_id}". Available agents: {", ".join(sorted(valid_ids))}.'
+        if suggested:
+            detail += f' Try "{suggested}".'
+        raise HTTPException(status_code=400, detail=detail)
+
     # First, save and broadcast the user's message
     user_message = ChatMessage(agent_id="user", content=message)
     db.add(user_message)
