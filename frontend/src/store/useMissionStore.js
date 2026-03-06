@@ -92,6 +92,7 @@ const transformChatMessage = (apiMessage) => ({
 const transformActivity = (apiActivity) => ({
   id: apiActivity.id,
   type: mapActivityType(apiActivity.activity_type),
+  activityType: apiActivity.activity_type,   // raw type for filtering/suppression
   title: getActivityTitle(apiActivity.activity_type),
   detail: apiActivity.description,
   agentId: apiActivity.agent?.id,
@@ -122,15 +123,23 @@ function getAgentColor(id, name) {
   return colorPalette[Math.abs(hash) % colorPalette.length]
 }
 
+// Ensure UTC timestamps without Z suffix are parsed as UTC, not local time
+function parseUTC(isoString) {
+  if (!isoString) return new Date(NaN)
+  const s = String(isoString)
+  // If already has timezone info, parse as-is; otherwise add Z to treat as UTC
+  return new Date(/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? s : s + 'Z')
+}
+
 function formatTime(isoString) {
   if (!isoString) return ''
-  const date = new Date(isoString)
+  const date = parseUTC(isoString)
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
 function formatRelativeTime(isoString) {
   if (!isoString) return ''
-  const date = new Date(isoString)
+  const date = parseUTC(isoString)
   const now = new Date()
   const diffMs = now - date
   const diffMins = Math.floor(diffMs / 60000)
@@ -419,7 +428,7 @@ export const useMissionStore = create((set, get) => ({
         id: `feed-${Date.now()}`,
         timestamp: 'Just now',
         ...item,
-      }, ...s.liveFeed].slice(0, 50)
+      }, ...s.liveFeed].slice(0, 100)
     }))
   },
   
@@ -478,7 +487,7 @@ export const useMissionStore = create((set, get) => ({
     const state = get()
     return state.notifications
       .filter(n => n.toAgentId === state.currentAgentId)
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .sort((a, b) => parseUTC(b.timestamp) - parseUTC(a.timestamp))
   },
   
   markNotificationRead: (notifId) => set((state) => ({

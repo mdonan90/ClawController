@@ -99,7 +99,7 @@ function NotificationsDropdown() {
                   </div>
                   <div className="notification-text">{notif.text}</div>
                   <div className="notification-time">
-                    {formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(/[Zz]|[+-]\d{2}:?\d{2}$/.test(String(notif.timestamp)) ? notif.timestamp : notif.timestamp + 'Z'), { addSuffix: true })}
                   </div>
                 </div>
                 {!notif.read && <div className="notification-unread-dot" />}

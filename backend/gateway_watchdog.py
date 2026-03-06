@@ -34,6 +34,7 @@ class GatewayWatchdog:
         self.state_file.parent.mkdir(exist_ok=True)
         self.state = self._load_state()
         self.monitoring = False
+        self._startup_logged = False  # Prevent duplicate "monitoring started" log entries
         
     def _load_state(self) -> Dict:
         """Load persistent state from file."""
@@ -349,7 +350,10 @@ Gateway is now healthy and operational."""
         """Main monitoring loop."""
         self.monitoring = True
         logging.info("Gateway watchdog started")
-        await self.log_activity("watchdog_started", "Gateway monitoring started")
+        # Only log startup once per process lifetime to avoid spam on restarts
+        if not self._startup_logged:
+            self._startup_logged = True
+            await self.log_activity("watchdog_started", "Gateway monitoring started")
         
         while self.monitoring:
             try:

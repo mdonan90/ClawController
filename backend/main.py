@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -22,6 +22,79 @@ from stuck_task_monitor import run_stuck_task_check, get_monitor_status
 from gateway_watchdog import start_gateway_watchdog, stop_gateway_watchdog, get_watchdog_status, run_health_check, manual_restart
 
 app = FastAPI(title="ClawController API", version="2.0.0")
+
+# Agent token required for endpoints that can transition tasks to DONE
+AGENT_TOKEN = "61a1082e33c524dc21d5364cbf0ac10a26910afd5f65a864bb9aa8e6dff8c30d"
+
+GITHUB_TOKEN = os.getenv("GH_TOKEN", "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")
+
+
+def auto_merge_pr(db: Session, task_id: str) -> Optional[str]:
+    """Extract PR URL from task activity and merge it on GitHub.
+    Returns a status message or None if no PR found."""
+    import re
+    import urllib.request
+    
+    activities = db.query(TaskActivity).filter(TaskActivity.task_id == task_id).all()
+    pr_url = None
+    for a in activities:
+        msg = a.message or ""
+        # Match patterns like: PR: https://github.com/Org/Repo/pull/123
+        match = re.search(r'https://github\.com/([^/]+/[^/]+)/pull/(\d+)', msg)
+        if match:
+            pr_url = match.group(0)
+            repo = match.group(1)
+            pr_number = match.group(2)
+            break
+    
+    if not pr_url:
+        return None
+    
+    try:
+        merge_url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/merge"
+        data = json.dumps({"merge_method": "squash"}).encode("utf-8")
+        req = urllib.request.Request(merge_url, data=data, method="PUT", headers={
+            "Authorization": f"token {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github.v3+json",
+            "Content-Type": "application/json",
+        })
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            result = json.loads(resp.read())
+            if result.get("merged"):
+                # Close the GitHub issue if task title contains an issue number
+                issue_match = re.search(r'#(\d+)', db.query(Task).filter(Task.id == task_id).first().title or "")
+                if issue_match:
+                    issue_num = issue_match.group(1)
+                    close_url = f"https://api.github.com/repos/{repo}/issues/{issue_num}"
+                    close_req = urllib.request.Request(close_url, 
+                        data=json.dumps({"state": "closed"}).encode("utf-8"),
+                        method="PATCH",
+                        headers={
+                            "Authorization": f"token {GITHUB_TOKEN}",
+                            "Accept": "application/vnd.github.v3+json",
+                            "Content-Type": "application/json",
+                        })
+                    try:
+                        urllib.request.urlopen(close_req, timeout=10)
+                    except Exception:
+                        pass  # Non-critical if issue close fails
+                return f"✅ PR #{pr_number} merged to main ({repo})"
+            return f"⚠️ PR #{pr_number} merge response: {result.get('message', 'unknown')}"
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        return f"⚠️ PR #{pr_number} merge failed ({e.code}): {body[:200]}"
+    except Exception as e:
+        return f"⚠️ PR #{pr_number} merge error: {str(e)[:200]}"
+
+
+def require_agent_token(x_agent_token: Optional[str] = Header(None, alias="X-Agent-Token")):
+    """Dependency that enforces X-Agent-Token header for privileged endpoints."""
+    if x_agent_token != AGENT_TOKEN:
+        raise HTTPException(
+            status_code=403,
+            detail="X-Agent-Token header required. Only authorized reviewers can perform this action."
+        )
+    return x_agent_token
 
 # CORS for frontend (allow all origins for remote access)
 app.add_middleware(
@@ -225,20 +298,46 @@ def notify_reviewer(task, submitted_by: str = None):
     else:
         deliverables_text = "\n**Deliverables:** None specified\n"
     
-    message = f"""📋 Task ready for review: {task.title}
+    message = f"""📋 REVIEW REQUIRED: {task.title}
 
-**Submitted by:** {agent_name}
-**Task ID:** {task.id}
-**Status:** REVIEW
-**Description:** {(task.description[:300] + '...') if task.description and len(task.description) > 300 else (task.description or 'No description')}
+Task {task.id} has been submitted for review by {agent_name}. You must perform a real code review before approving.
+
+**Description:** {(task.description[:400] + '...') if task.description and len(task.description) > 400 else (task.description or 'No description')}
 {deliverables_text}
-**Review Required:** Please review this task in ClawController and either approve or reject it with feedback.
 
-**Actions:**
-- Approve: `curl -X POST http://localhost:8000/api/tasks/{task.id}/approve`
-- Reject: `curl -X POST http://localhost:8000/api/tasks/{task.id}/reject -d '{{"feedback": "YOUR_FEEDBACK"}}'`
+## Your Review Checklist (do ALL of these)
 
-View in ClawController: http://localhost:5001/tasks/{task.id}"""
+0. Check activity log for a PR URL — if no PR was opened, REJECT immediately:
+   curl -s http://localhost:8000/api/tasks/{task.id}/activity | python3 -c "import sys,json; items=json.load(sys.stdin); pr=[i for i in items if 'PR:' in i.get('message','') or 'pull/' in i.get('message','')]; print('PR found' if pr else 'NO PR — REJECT')"
+
+1. Fetch full task details:
+   curl -s http://localhost:8000/api/tasks/{task.id} | python3 -m json.tool
+
+2. Identify the repo from the task tags, then check the PR and git log:
+   cd ~/arctiq-one && git log --oneline -10
+   GH_TOKEN=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 gh pr list --repo <repo> --state open
+   git diff HEAD~1 --stat
+   git diff HEAD~1
+
+3. Read the key changed files and verify implementation matches the task spec
+
+4. Log your review findings (REQUIRED before approving):
+   curl -X POST http://localhost:8000/api/tasks/{task.id}/activity \\
+     -H "Content-Type: application/json" \\
+     -H "X-Agent-Token: 61a1082e33c524dc21d5364cbf0ac10a26910afd5f65a864bb9aa8e6dff8c30d" \\
+     -d '{{"agent_id": "main", "message": "REVIEW: [what you checked, what passed, any concerns]"}}'
+
+5. Approve or reject:
+   - Approve: curl -X POST http://localhost:8000/api/tasks/{task.id}/review \\
+       -H "Content-Type: application/json" \\
+       -H "X-Agent-Token: 61a1082e33c524dc21d5364cbf0ac10a26910afd5f65a864bb9aa8e6dff8c30d" \\
+       -d '{{"action": "approve", "agent_id": "main", "notes": "YOUR REVIEW SUMMARY"}}'
+   - Reject: curl -X POST http://localhost:8000/api/tasks/{task.id}/review \\
+       -H "Content-Type: application/json" \\
+       -H "X-Agent-Token: 61a1082e33c524dc21d5364cbf0ac10a26910afd5f65a864bb9aa8e6dff8c30d" \\
+       -d '{{"action": "reject", "agent_id": "main", "notes": "SPECIFIC FEEDBACK FOR DEV"}}'
+
+Do NOT approve without logging your review findings first."""
 
     try:
         subprocess.Popen(
@@ -288,7 +387,8 @@ def notify_agent_of_task(task):
     """Notify agent via OpenClaw when a task is assigned to them."""
     if not task.assignee_id:
         return
-    if task.status not in [TaskStatus.ASSIGNED, TaskStatus.IN_PROGRESS]:
+    # Only notify for freshly ASSIGNED tasks — don't re-notify if already running or further along
+    if task.status != TaskStatus.ASSIGNED:
         return
     
     description_preview = (task.description[:500] + '...') if task.description and len(task.description) > 500 else (task.description or 'No description')
@@ -412,6 +512,168 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
+
+def parse_transcript_line(line: str) -> dict | None:
+    """Parse a JSONL transcript line into a display event."""
+    try:
+        obj = json.loads(line)
+        msg = obj.get("message", obj)
+        role = msg.get("role", "")
+        content = msg.get("content", [])
+        ts = obj.get("timestamp", "")
+
+        if not isinstance(content, list):
+            return None
+
+        events = []
+        for item in content:
+            if not isinstance(item, dict):
+                continue
+            t = item.get("type", "")
+            if t == "text":
+                text = item.get("text", "").strip()
+                if text:
+                    events.append({"type": "text", "role": role, "content": text, "ts": ts})
+            elif t == "thinking":
+                think = item.get("thinking", "").strip()
+                if think:
+                    events.append({"type": "thinking", "content": think[:300], "ts": ts})
+            elif t in ("toolUse", "tool_use", "toolCall"):
+                name = item.get("name", "")
+                args = item.get("input") or item.get("arguments") or {}
+                if isinstance(args, dict):
+                    if name in ("exec", "Bash", "bash"):
+                        detail = args.get("command", str(args))[:200]
+                    elif name in ("Read", "Write", "Edit", "read", "write", "edit"):
+                        detail = args.get("file_path") or args.get("path", str(args)[:100])
+                    elif name == "web_search":
+                        detail = args.get("query", "")
+                    elif name == "web_fetch":
+                        detail = args.get("url", "")
+                    else:
+                        detail = str(args)[:150]
+                else:
+                    detail = str(args)[:150]
+                events.append({"type": "tool", "name": name, "detail": detail, "ts": ts})
+            elif t == "toolResult":
+                result_content = item.get("content", [])
+                if isinstance(result_content, list):
+                    for rc in result_content:
+                        if isinstance(rc, dict) and rc.get("type") == "text":
+                            events.append({"type": "result", "content": rc.get("text", "")[:300], "ts": ts})
+                            break
+                elif isinstance(result_content, str):
+                    events.append({"type": "result", "content": result_content[:300], "ts": ts})
+        return events if events else None
+    except Exception:
+        return None
+
+
+@app.websocket("/ws/tasks/{task_id}/stream")
+async def stream_task_session(websocket: WebSocket, task_id: str, db: Session = Depends(get_db)):
+    """Stream live agent activity for a task from its session transcript."""
+    await websocket.accept()
+
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        await websocket.send_json({"type": "error", "message": "Task not found"})
+        await websocket.close()
+        return
+
+    agent_id = task.assignee_id or "dev"
+    session_key = f"agent:{agent_id}:task-{task_id[:8]}"
+    home = Path.home()
+    sessions_json = home / ".openclaw" / "agents" / agent_id / "sessions" / "sessions.json"
+
+    # Find transcript: try task-specific session first, fall back to most recently modified file
+    transcript_path = None
+    sessions_dir = home / ".openclaw" / "agents" / agent_id / "sessions"
+
+    def find_transcript():
+        # 0. Use stored session_file path on the task (most reliable)
+        if task.session_file:
+            candidate = Path(task.session_file)
+            if candidate.exists():
+                return candidate
+
+        # 1. Try task-specific session key in the assignee's session dir
+        try:
+            if sessions_json.exists():
+                with open(sessions_json) as f:
+                    sessions = json.load(f)
+                session_data = sessions.get(session_key)
+                if session_data and session_data.get("sessionId"):
+                    uuid = session_data["sessionId"]
+                    candidate = sessions_dir / f"{uuid}.jsonl"
+                    if candidate.exists():
+                        return candidate
+        except Exception:
+            pass
+
+        # 2. Fall back to most recently modified file in assignee's session dir only
+        try:
+            files = list(sessions_dir.glob("*.jsonl"))
+            if files:
+                return max(files, key=lambda f: f.stat().st_mtime)
+        except Exception:
+            pass
+        return None
+
+    transcript_path = find_transcript()
+
+    # If still not found, wait briefly for it
+    if not transcript_path:
+        for _ in range(10):
+            await websocket.send_json({"type": "waiting", "message": "Waiting for agent session to start..."})
+            await asyncio.sleep(0.5)
+            transcript_path = find_transcript()
+            if transcript_path:
+                break
+
+    if not transcript_path:
+        await websocket.send_json({"type": "error", "message": "Agent session not found. Task may not have started yet."})
+        await websocket.close()
+        return
+
+    await websocket.send_json({"type": "connected", "message": f"Streaming {agent_id} session..."})
+
+    # Tail the transcript file, backfilling the last 60 lines first
+    try:
+        with open(transcript_path, "r", errors="replace") as f:
+            all_lines = f.readlines()
+            # Send last 60 lines as backfill
+            backfill_lines = all_lines[-60:] if len(all_lines) > 60 else all_lines
+            for line in backfill_lines:
+                events = parse_transcript_line(line.strip())
+                if events:
+                    for event in events:
+                        event["backfill"] = True
+                        await websocket.send_json(event)
+            # Now tail from current end for live events
+            f.seek(0, 2)
+            while True:
+                line = f.readline()
+                if line:
+                    events = parse_transcript_line(line.strip())
+                    if events:
+                        for event in events:
+                            await websocket.send_json(event)
+                else:
+                    await asyncio.sleep(0.2)
+                # Check if client disconnected
+                try:
+                    await asyncio.wait_for(websocket.receive_text(), timeout=0.01)
+                except asyncio.TimeoutError:
+                    pass
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        try:
+            await websocket.send_json({"type": "error", "message": str(e)})
+        except Exception:
+            pass
+
+
 # Agent endpoints
 @app.get("/api/agents", response_model=List[AgentResponse])
 def get_agents(db: Session = Depends(get_db)):
@@ -483,7 +745,7 @@ class OpenClawAgentResponse(BaseModel):
     status: str
     emoji: Optional[str] = None
     workspace: Optional[str] = None
-    model: Optional[dict] = None
+    model: Optional[str | dict] = None
 
 @app.get("/api/openclaw/agents", response_model=List[OpenClawAgentResponse])
 def get_openclaw_agents(db: Session = Depends(get_db)):
@@ -778,6 +1040,16 @@ async def create_task(task_data: TaskCreate, db: Session = Depends(get_db)):
         "auto_assigned": auto_assigned
     }
 
+@app.patch("/api/tasks/{task_id}/session-file")
+def set_task_session_file(task_id: str, data: dict, db: Session = Depends(get_db)):
+    """Store the session transcript path for a task so Live stream can find it."""
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    task.session_file = data.get("session_file")
+    db.commit()
+    return {"ok": True, "session_file": task.session_file}
+
 @app.get("/api/tasks/{task_id}")
 def get_task(task_id: str, db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
@@ -931,7 +1203,7 @@ class ReviewAction(BaseModel):
     reviewer: Optional[str] = None  # For sending to review
 
 @app.post("/api/tasks/{task_id}/review")
-async def review_task(task_id: str, review_data: ReviewAction, db: Session = Depends(get_db)):
+async def review_task(task_id: str, review_data: ReviewAction, db: Session = Depends(get_db), x_agent_token: Optional[str] = Header(None, alias="X-Agent-Token")):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -948,7 +1220,12 @@ async def review_task(task_id: str, review_data: ReviewAction, db: Session = Dep
                           description=f"Task sent for review to {task.reviewer_id}")
     
     elif review_data.action == "approve":
-        # Approve and move to DONE - ONLY reviewers can approve
+        # Approve and move to DONE - ONLY authorized reviewers can approve
+        if x_agent_token != AGENT_TOKEN:
+            raise HTTPException(
+                status_code=403,
+                detail="X-Agent-Token header required to approve tasks. Only authorized reviewers can approve."
+            )
         if task.status != TaskStatus.REVIEW:
             raise HTTPException(status_code=400, detail="Task is not in REVIEW status")
         
@@ -973,6 +1250,16 @@ async def review_task(task_id: str, review_data: ReviewAction, db: Session = Dep
             message=f"✅ Approved and marked DONE by {old_reviewer}"
         )
         db.add(activity)
+        
+        # Auto-merge PR on GitHub if one exists in the activity log
+        merge_result = auto_merge_pr(db, task_id)
+        if merge_result:
+            merge_activity = TaskActivity(
+                task_id=task_id,
+                agent_id="system",
+                message=merge_result
+            )
+            db.add(merge_activity)
         
         # Notify task completion to main agent
         db.commit()
@@ -1025,8 +1312,8 @@ async def review_task(task_id: str, review_data: ReviewAction, db: Session = Dep
 
 # Dedicated approve endpoint
 @app.post("/api/tasks/{task_id}/approve")
-async def approve_task(task_id: str, db: Session = Depends(get_db)):
-    """Approve a task in REVIEW status and move it to DONE."""
+async def approve_task(task_id: str, db: Session = Depends(get_db), _token: str = Depends(require_agent_token)):
+    """Approve a task in REVIEW status and move it to DONE. Requires X-Agent-Token."""
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -1268,6 +1555,29 @@ async def add_task_activity(task_id: str, activity_data: TaskActivityCreate, db:
             new_status = TaskStatus.IN_PROGRESS
     
     # Add the activity AFTER checking for auto-transitions
+    # Deduplicate: skip if same agent posted the same message within the last 60 seconds
+    from datetime import datetime, timedelta
+    sixty_seconds_ago = datetime.utcnow() - timedelta(seconds=60)
+    duplicate = db.query(TaskActivity).filter(
+        TaskActivity.task_id == task_id,
+        TaskActivity.agent_id == activity_data.agent_id,
+        TaskActivity.message == activity_data.message,
+        TaskActivity.timestamp >= sixty_seconds_ago
+    ).first()
+
+    if duplicate:
+        # Return the existing activity rather than inserting a duplicate
+        db.refresh(duplicate)
+        agent = db.query(Agent).filter(Agent.id == activity_data.agent_id).first()
+        return {
+            "id": duplicate.id,
+            "task_id": task_id,
+            "agent_id": duplicate.agent_id,
+            "message": duplicate.message,
+            "timestamp": duplicate.timestamp.isoformat(),
+            "deduplicated": True
+        }
+
     activity = TaskActivity(
         task_id=task_id,
         agent_id=activity_data.agent_id,
@@ -1721,71 +2031,112 @@ async def route_task_to_agent(task_id: str, request: RouteTaskRequest = None, db
         raise HTTPException(status_code=400, detail="Task has no assignee")
     
     # Build the task message
+    short_id = task_id[:8]
+
+    # Detect repo from task tags
+    tags = []
+    try:
+        tags = json.loads(task.tags or "[]")
+    except Exception:
+        pass
+    tag_set = set(t.lower() for t in tags)
+    if "arctiqone" in tag_set or "arctiscope" in tag_set or "verinext" in tag_set:
+        repo = "Verinext/arctiq-one"
+    elif "clawcontroller" in tag_set:
+        repo = "mdonan90/ClawController"
+    elif "sentimentguardian" in tag_set or "sg" in tag_set:
+        repo = "mdonan90/SentimentGuardian"
+    elif "safeharbor" in tag_set:
+        repo = "mdonan90/safeharbor"
+    else:
+        repo = "$(git remote get-url origin | sed 's/.*github.com\\///' | sed 's/\\.git//')"
+
     task_message = f"""Task: {task.title}
 
 **Task ID:** {task_id}
+**Repo:** {repo}
 
 **Description:**
 {task.description or 'No description provided.'}
 
 **Priority:** {task.priority.value if task.priority else 'NORMAL'}
 
-**When complete, report back:**
+## REQUIRED: Branch → PR → Report (never push direct to main)
+
 ```bash
+# 1. Branch
+cd <repo-dir> && git checkout main && git pull
+git checkout -b feat/{short_id}-<short-description>
+
+# 2. Do work, commit atomically
+git add -A && git commit -m "feat(<scope>): <what you did>"
+
+# 3. Push + open PR
+git push -u origin feat/{short_id}-<short-description>
+GH_TOKEN=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 gh pr create \\
+  --repo {repo} \\
+  --title "<title>" \\
+  --body "Closes #<issue_number>\\n\\n<summary>" \\
+  --base main
+
+# 4. Report back with PR URL (REQUIRED before setting REVIEW)
 curl -X POST http://localhost:8000/api/tasks/{task_id}/activity \\
   -H "Content-Type: application/json" \\
-  -d '{{"agent_id": "{task.assignee_id}", "message": "YOUR_UPDATE"}}'
+  -d '{{"agent_id": "{task.assignee_id}", "message": "completed — PR: <PR_URL> | commit: <HASH>"}}'
 
+# 5. Set to REVIEW
 curl -X PATCH http://localhost:8000/api/tasks/{task_id} \\
   -H "Content-Type: application/json" \\
   -d '{{"status": "REVIEW"}}'
-```"""
+```
+
+**Do NOT merge your own PR. Submit it and ClawController will auto-merge on approval.**"""
     
     if request and request.message:
         task_message = request.message
     
-    # Log the routing
-    activity = TaskActivity(
-        task_id=task_id,
-        agent_id="system",
-        message=f"🚀 Routing to agent {task.assignee_id} with fresh context"
-    )
-    db.add(activity)
-    db.commit()
+    # Log the routing — skip if the last entry already says "Routing" (deduplicate)
+    last_activity = db.query(TaskActivity).filter(
+        TaskActivity.task_id == task_id
+    ).order_by(TaskActivity.timestamp.desc()).first()
+
+    if not (last_activity and "Routing" in (last_activity.message or "")):
+        activity = TaskActivity(
+            task_id=task_id,
+            agent_id="system",
+            message=f"🚀 Routing to agent {task.assignee_id} with fresh context"
+        )
+        db.add(activity)
+        db.commit()
     
-    # Spawn isolated session for this task
+    # Spawn isolated session for this task (fire-and-forget — don't wait for LLM response)
+    # Each task gets its own --session-id so they run in parallel, not queued
+    session_id = f"task-{task_id[:8]}"
     try:
-        result = subprocess.run(
+        subprocess.Popen(
             [
-                "openclaw", "sessions", "spawn",
+                "openclaw", "agent",
                 "--agent", task.assignee_id,
-                "--label", f"task-{task_id[:8]}",
+                "--session-id", session_id,
                 "--message", task_message
             ],
-            capture_output=True,
-            text=True,
-            timeout=30
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            cwd=str(Path.home())
         )
         
-        if result.returncode != 0:
-            # Fallback to direct agent command
-            result = subprocess.run(
-                ["openclaw", "agent", "--agent", task.assignee_id, "--message", task_message],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-        
+        # Update task status to IN_PROGRESS
+        task.status = TaskStatus.IN_PROGRESS
+        db.commit()
+
         return {
             "ok": True,
             "task_id": task_id,
             "agent_id": task.assignee_id,
-            "session_label": f"task-{task_id[:8]}",
-            "message": "Task routed with fresh context"
+            "session_id": session_id,
+            "message": "Task routed — agent is working"
         }
         
-    except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=504, detail="Agent spawn timed out")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to route task: {str(e)}")
 

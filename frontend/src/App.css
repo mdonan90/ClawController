@@ -2344,6 +2344,40 @@
   text-align: center;
 }
 
+.feed-repeat-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted, #9CA3AF);
+  background: var(--bg-tertiary, #374151);
+  border-radius: 10px;
+  padding: 1px 6px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.feed-load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 16px;
+  background: none;
+  border: 1px dashed var(--border, #374151);
+  border-radius: 6px;
+  color: var(--text-muted, #9CA3AF);
+  font-size: 12px;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.feed-load-more:hover {
+  background: var(--bg-tertiary, #374151);
+  color: var(--text-primary, #F9FAFB);
+}
+
 /* ===== RECURRING TASKS ===== */
 
 /* Header Button */

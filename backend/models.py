@@ -69,6 +69,7 @@ class Task(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     due_at = Column(DateTime, nullable=True)
+    session_file = Column(String(500), nullable=True)  # Path to the active session transcript file
     
     assignee = relationship("Agent", back_populates="tasks", foreign_keys=[assignee_id])
     reviewer_agent = relationship("Agent", back_populates="reviewed_tasks", foreign_keys=[reviewer_id])
