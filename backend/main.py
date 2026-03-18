@@ -516,7 +516,7 @@ class OpenClawAgentResponse(BaseModel):
     status: str
     emoji: Optional[str] = None
     workspace: Optional[str] = None
-    model: Optional[dict] = None
+    model: Optional[dict | str] = None
 
 @app.get("/api/openclaw/agents", response_model=List[OpenClawAgentResponse])
 def get_openclaw_agents(db: Session = Depends(get_db)):

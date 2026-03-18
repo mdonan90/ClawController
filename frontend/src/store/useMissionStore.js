@@ -130,15 +130,23 @@ function getAgentColor(id, name) {
   return colorPalette[Math.abs(hash) % colorPalette.length]
 }
 
+// Backend returns naive UTC timestamps (no Z suffix).
+// Append Z so JS Date parses them as UTC, then toLocale* converts to browser local time.
+function ensureUTC(isoString) {
+  if (!isoString) return isoString
+  if (isoString.endsWith('Z') || isoString.includes('+') || isoString.includes('-', 10)) return isoString
+  return isoString + 'Z'
+}
+
 function formatTime(isoString) {
   if (!isoString) return ''
-  const date = new Date(isoString)
+  const date = new Date(ensureUTC(isoString))
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
 function formatRelativeTime(isoString) {
   if (!isoString) return ''
-  const date = new Date(isoString)
+  const date = new Date(ensureUTC(isoString))
   const now = new Date()
   const diffMs = now - date
   const diffMins = Math.floor(diffMs / 60000)

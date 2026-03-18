@@ -7,7 +7,7 @@ import { format, isPast, isToday, isTomorrow } from 'date-fns'
 // Format due date for display
 function formatDueDate(dueAt) {
   if (!dueAt) return null
-  const date = new Date(dueAt)
+  const date = new Date(dueAt?.endsWith('Z') ? dueAt : dueAt + 'Z')
   
   if (isToday(date)) return 'Due Today'
   if (isTomorrow(date)) return 'Due Tomorrow'
@@ -19,7 +19,7 @@ function formatDueDate(dueAt) {
 // Check if task is overdue
 function isOverdue(dueAt, status) {
   if (!dueAt || status === 'DONE') return false
-  return isPast(new Date(dueAt)) && !isToday(new Date(dueAt))
+  return isPast(new Date(dueAt?.endsWith('Z') ? dueAt : dueAt + 'Z')) && !isToday(new Date(dueAt?.endsWith('Z') ? dueAt : dueAt + 'Z'))
 }
 
 // Base card component (no DnD)

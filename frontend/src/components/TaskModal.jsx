@@ -652,7 +652,7 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
                       <span className="activity-message">{entry.message}</span>
                     </div>
                     <div className="activity-time">
-                      {format(new Date(entry.timestamp), 'MMM d, h:mm a')}
+                      {format(new Date(entry.timestamp?.endsWith('Z') ? entry.timestamp : entry.timestamp + 'Z'), 'MMM d, h:mm a')}
                     </div>
                   </div>
                 ))

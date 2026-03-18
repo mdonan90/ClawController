@@ -88,11 +88,18 @@ class GatewayWatchdog:
                     status_data = json.loads(stdout.decode())
                     gateway_info = status_data.get("gateway", {})
                     is_reachable = gateway_info.get("reachable", False)
+                    error = gateway_info.get("error", "")
+                    connect_latency = gateway_info.get("connectLatencyMs")
+                    
                     if is_reachable:
                         return True, "Gateway healthy"
+                    elif connect_latency is not None and "missing scope" in error:
+                        # Gateway is running and responding (we connected), but the
+                        # status probe lacks operator.read scope. This is an auth
+                        # config issue, not a crash. Treat as healthy.
+                        return True, f"Gateway running (scope warning: {error})"
                     else:
-                        error = gateway_info.get("error", "unreachable")
-                        return False, f"Gateway status: {error}"
+                        return False, f"Gateway status: {error or 'unreachable'}"
                 except json.JSONDecodeError:
                     return False, "Gateway responding but status unreadable"
             else:
