@@ -2,7 +2,7 @@ import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import TaskCard from './TaskCard'
 
-export default function KanbanColumn({ title, tasks, color }) {
+export default function KanbanColumn({ title, tasks, color, className = '' }) {
   const { isOver, setNodeRef } = useDroppable({
     id: title,
   })
@@ -12,7 +12,7 @@ export default function KanbanColumn({ title, tasks, color }) {
   return (
     <div 
       ref={setNodeRef}
-      className={`kanban-column ${isOver ? 'kanban-column--over' : ''}`}
+      className={`kanban-column ${isOver ? 'kanban-column--over' : ''} ${className}`}
     >
       <div className="kanban-column-header" style={{ borderColor: color }}>
         <div>

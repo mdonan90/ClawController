@@ -16,6 +16,7 @@ export default function AgentEditModal({ agentId }) {
   const updateAgentFiles = useMissionStore((s) => s.updateAgentFiles)
   const getAgentFiles = useMissionStore((s) => s.getAgentFiles)
   const deleteAgent = useMissionStore((s) => s.deleteAgent)
+  const refreshAgents = useMissionStore((s) => s.refreshAgents)
   
   const agent = agents.find((a) => a.id === agentId)
   
@@ -82,17 +83,26 @@ export default function AgentEditModal({ agentId }) {
   if (!agent) return null
   
   const handleSave = async () => {
+    console.log('🔵 handleSave called, activeTab:', activeTab, 'model:', model, 'fallbackModel:', fallbackModel)
     try {
       if (activeTab === 'general') {
+        console.log('🔵 Saving general tab...')
         await updateAgent(agentId, { name, emoji, model })
       } else if (activeTab === 'models') {
+        console.log('🔵 Saving models tab...')
         await updateAgentModels(agentId, { model, fallbackModel })
+        console.log('🔵 Models saved, refreshing agents...')
+        // Refresh agents list to reflect model changes in UI
+        await refreshAgents()
+        console.log('🔵 Agents refreshed')
       } else {
+        console.log('🔵 Saving files tab...')
         await updateAgentFiles(agentId, files)
       }
       setHasChanges(false)
+      console.log('✅ Save complete')
     } catch (err) {
-      console.error('Save failed:', err)
+      console.error('❌ Save failed:', err)
     }
   }
   
@@ -106,6 +116,14 @@ export default function AgentEditModal({ agentId }) {
       })
     })
     if (!response.ok) throw new Error('Failed to update models')
+    
+    // Reload model status to reflect changes
+    const statusRes = await fetch(`/api/agents/${agentId}/model-status`)
+    if (statusRes.ok) {
+      const statusData = await statusRes.json()
+      setModelStatus(statusData)
+    }
+    
     return response.json()
   }
   
@@ -137,8 +155,10 @@ export default function AgentEditModal({ agentId }) {
   }
   
   const handleFieldChange = (setter) => (e) => {
+    console.log('🟢 Field changed:', e.target.value)
     setter(e.target.value)
     setHasChanges(true)
+    console.log('🟢 hasChanges set to true')
   }
   
   const handleFileChange = (field) => (e) => {
@@ -148,9 +168,16 @@ export default function AgentEditModal({ agentId }) {
   
   console.log('🟡 AgentEditModal rendering for agent:', agentId)
   
+  // Debug state for mobile testing - shows on screen
+  const [debugLog, setDebugLog] = useState([])
+  const addDebug = (msg) => {
+    console.log('DEBUG:', msg)
+    setDebugLog(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${msg}`])
+  }
+  
   return (
-    <div className="modal-overlay agent-edit-overlay" onClick={closeEditingAgent}>
-      <div className="modal agent-edit-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay agent-edit-overlay" onClick={closeEditingAgent} onTouchEnd={(e) => { if (e.target === e.currentTarget) closeEditingAgent() }}>
+      <div className="modal agent-edit-modal" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div>
             <span className="modal-label">Edit Agent</span>
@@ -210,7 +237,18 @@ export default function AgentEditModal({ agentId }) {
                 <label>Model</label>
                 <select
                   value={model}
-                  onChange={handleFieldChange(setModel)}
+                  onChange={(e) => {
+                    addDebug(`SELECT onChange: ${e.target.value}`)
+                    setModel(e.target.value)
+                    setHasChanges(true)
+                  }}
+                  onBlur={(e) => {
+                    addDebug(`SELECT onBlur: ${e.target.value}`)
+                    if (e.target.value && e.target.value !== model) {
+                      setModel(e.target.value)
+                      setHasChanges(true)
+                    }
+                  }}
                   className="agent-edit-select"
                 >
                   <option value="">Select a model...</option>
@@ -220,6 +258,20 @@ export default function AgentEditModal({ agentId }) {
                     </option>
                   ))}
                 </select>
+              </div>
+              
+              {/* Debug panel - visible on screen */}
+              <div style={{ 
+                marginTop: '12px', 
+                padding: '8px', 
+                background: '#1a1a2e', 
+                borderRadius: '8px',
+                fontSize: '11px',
+                fontFamily: 'monospace',
+                color: '#0f0'
+              }}>
+                <div><strong>DEBUG:</strong> hasChanges={String(hasChanges)} | model={model?.slice(-20)}</div>
+                {debugLog.map((log, i) => <div key={i}>{log}</div>)}
               </div>
             </>
           ) : activeTab === 'models' ? (
@@ -269,7 +321,12 @@ export default function AgentEditModal({ agentId }) {
                     <label>Primary Model</label>
                     <select
                       value={model}
-                      onChange={handleFieldChange(setModel)}
+                      onChange={(e) => {
+                        console.log('🔵 Models tab - Primary model changed:', e.target.value)
+                        setModel(e.target.value)
+                        setHasChanges(true)
+                        console.log('🔵 Models tab - hasChanges set to true')
+                      }}
                       className="agent-edit-select"
                     >
                       <option value="">Select primary model...</option>
@@ -288,7 +345,12 @@ export default function AgentEditModal({ agentId }) {
                     <label>Fallback Model</label>
                     <select
                       value={fallbackModel}
-                      onChange={handleFieldChange(setFallbackModel)}
+                      onChange={(e) => {
+                        console.log('🔵 Models tab - Fallback model changed:', e.target.value)
+                        setFallbackModel(e.target.value)
+                        setHasChanges(true)
+                        console.log('🔵 Models tab - hasChanges set to true')
+                      }}
                       className="agent-edit-select"
                     >
                       <option value="">No fallback model</option>
@@ -393,11 +455,25 @@ export default function AgentEditModal({ agentId }) {
                 Cancel
               </button>
               <button
+                type="button"
                 className="primary-button"
-                onClick={handleSave}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  addDebug(`SAVE clicked! hasChanges=${hasChanges} loading=${loading}`)
+                  if (!loading && hasChanges) {
+                    addDebug('Calling handleSave...')
+                    setTimeout(() => {
+                      handleSave().then(() => addDebug('Save complete!')).catch(err => addDebug(`Save error: ${err}`))
+                    }, 0)
+                  } else {
+                    addDebug('Save blocked - no changes or loading')
+                  }
+                }}
                 disabled={loading || !hasChanges}
+                style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
               >
-                {loading ? 'Saving...' : 'Save Changes'}
+                {loading ? 'Saving...' : hasChanges ? 'Save Changes' : 'No Changes'}
               </button>
             </>
           )}

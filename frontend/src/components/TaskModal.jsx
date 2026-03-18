@@ -1,5 +1,5 @@
-import { X, ChevronRight, ChevronLeft, Check, MessageSquare, User, Calendar, Paperclip, FileText, Download, Trash2, Activity } from 'lucide-react'
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { X, ChevronRight, ChevronLeft, Check, MessageSquare, User, Calendar, Paperclip, FileText, Download, Trash2, Activity, Terminal, Zap } from 'lucide-react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useMissionStore, priorityColors, statusColors, statusOrder } from '../store/useMissionStore'
 import MentionText from './MentionText'
 import DatePicker from 'react-datepicker'
@@ -125,6 +125,11 @@ export default function TaskModal() {
   const [uploadingForItem, setUploadingForItem] = useState(null)
   const [activityLog, setActivityLog] = useState([])
   const [activityLoading, setActivityLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState('activity') // 'activity' | 'live'
+  const [liveEvents, setLiveEvents] = useState([])
+  const [liveStatus, setLiveStatus] = useState('idle') // 'idle' | 'connecting' | 'connected' | 'error'
+  const liveScrollRef = useRef(null)
+  const wsRef = useRef(null)
   const [previewFile, setPreviewFile] = useState(null)
   const [previewContent, setPreviewContent] = useState('')
   const [previewLoading, setPreviewLoading] = useState(false)
@@ -162,6 +167,55 @@ export default function TaskModal() {
       setActivityLog([])
     }
   }, [selectedTaskId])
+
+  // Live stream WebSocket
+  const connectLiveStream = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close()
+    }
+    if (!selectedTaskId) return
+    setLiveEvents([])
+    setLiveStatus('connecting')
+    const wsUrl = `ws://${window.location.hostname}:8000/ws/tasks/${selectedTaskId}/stream`
+    const ws = new WebSocket(wsUrl)
+    wsRef.current = ws
+    ws.onopen = () => setLiveStatus('connecting')
+    ws.onmessage = (e) => {
+      try {
+        const event = JSON.parse(e.data)
+        if (event.type === 'connected') {
+          setLiveStatus('connected')
+        } else if (event.type === 'error') {
+          setLiveStatus('error')
+          setLiveEvents(prev => [...prev, { type: 'error', content: event.message, ts: new Date().toISOString() }])
+        } else if (event.type === 'waiting') {
+          setLiveEvents(prev => {
+            const last = prev[prev.length - 1]
+            if (last?.type === 'waiting') return prev
+            return [...prev, { type: 'waiting', content: event.message, ts: new Date().toISOString() }]
+          })
+        } else {
+          setLiveEvents(prev => [...prev, event])
+        }
+      } catch {}
+    }
+    ws.onerror = () => setLiveStatus('error')
+    ws.onclose = () => {
+      if (liveStatus !== 'error') setLiveStatus('idle')
+    }
+  }, [selectedTaskId])
+
+  // Auto-scroll live terminal
+  useEffect(() => {
+    if (liveScrollRef.current) {
+      liveScrollRef.current.scrollTop = liveScrollRef.current.scrollHeight
+    }
+  }, [liveEvents])
+
+  // Cleanup WS on unmount
+  useEffect(() => {
+    return () => { if (wsRef.current) wsRef.current.close() }
+  }, [])
 
   if (!selectedTaskId) return null
 
@@ -630,34 +684,118 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
             </div>
           </div>
 
-          {/* Activity Log Section */}
+          {/* Activity / Live Stream Tabs */}
           <div className="modal-section">
-            <h3>
-              <Activity size={16} />
-              Activity Log
-            </h3>
-            <div className="activity-log">
-              {activityLoading ? (
-                <div className="activity-loading">Loading activity...</div>
-              ) : activityLog.length === 0 ? (
-                <div className="activity-empty">No activity recorded yet</div>
-              ) : (
-                activityLog.map((entry) => (
-                  <div key={entry.id} className="activity-entry">
-                    <div className="activity-avatar">
-                      {entry.agent?.avatar || '🤖'}
-                    </div>
-                    <div className="activity-content">
-                      <span className="activity-agent">{entry.agent?.name || 'Unknown'}</span>
-                      <span className="activity-message">{entry.message}</span>
-                    </div>
-                    <div className="activity-time">
-                      {format(new Date(entry.timestamp), 'MMM d, h:mm a')}
-                    </div>
-                  </div>
-                ))
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <button
+                onClick={() => setActiveTab('activity')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px',
+                  borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500,
+                  background: activeTab === 'activity' ? '#3b82f6' : 'transparent',
+                  color: activeTab === 'activity' ? '#fff' : '#9ca3af'
+                }}
+              >
+                <Activity size={13} /> Activity
+              </button>
+              <button
+                onClick={() => { setActiveTab('live'); if (liveStatus === 'idle') connectLiveStream() }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px',
+                  borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500,
+                  background: activeTab === 'live' ? '#10b981' : 'transparent',
+                  color: activeTab === 'live' ? '#fff' : '#9ca3af'
+                }}
+              >
+                <Terminal size={13} />
+                Live
+                {liveStatus === 'connected' && (
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
+                )}
+              </button>
+              {activeTab === 'live' && (
+                <button
+                  onClick={connectLiveStream}
+                  title="Reconnect"
+                  style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', padding: '2px 6px' }}
+                >
+                  <Zap size={13} />
+                </button>
               )}
             </div>
+
+            {activeTab === 'activity' && (
+              <div className="activity-log">
+                {activityLoading ? (
+                  <div className="activity-loading">Loading activity...</div>
+                ) : activityLog.length === 0 ? (
+                  <div className="activity-empty">No activity recorded yet</div>
+                ) : (
+                  activityLog.map((entry) => (
+                    <div key={entry.id} className="activity-entry">
+                      <div className="activity-avatar">
+                        {entry.agent?.avatar || '🤖'}
+                      </div>
+                      <div className="activity-content">
+                        <span className="activity-agent">{entry.agent?.name || 'Unknown'}</span>
+                        <span className="activity-message">{entry.message}</span>
+                      </div>
+                      <div className="activity-time">
+                        {format(new Date(/[Zz]|[+-]\d{2}:?\d{2}$/.test(String(entry.timestamp)) ? entry.timestamp : entry.timestamp + 'Z'), 'MMM d, h:mm a')}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {activeTab === 'live' && (
+              <div ref={liveScrollRef} style={{
+                background: '#0d1117', borderRadius: '8px', padding: '12px', fontFamily: 'monospace',
+                fontSize: '12px', lineHeight: '1.6', height: '320px', overflowY: 'auto',
+                border: '1px solid #21262d', color: '#c9d1d9'
+              }}>
+                {liveStatus === 'connecting' && liveEvents.length === 0 && (
+                  <div style={{ color: '#58a6ff' }}>⏳ Connecting to agent session...</div>
+                )}
+                {liveStatus === 'error' && liveEvents.length === 0 && (
+                  <div style={{ color: '#f85149' }}>✗ Could not connect. Task may not be running yet.</div>
+                )}
+                {liveEvents.map((ev, i) => {
+                  if (ev.type === 'waiting') return <div key={i} style={{ color: '#58a6ff', opacity: 0.6 }}>⏳ {ev.content}</div>
+                  if (ev.type === 'error') return <div key={i} style={{ color: '#f85149' }}>✗ {ev.content}</div>
+                  if (ev.type === 'thinking') return (
+                    <div key={i} style={{ color: '#6e7681', marginBottom: '2px' }}>
+                      <span style={{ color: '#8b949e' }}>💭 </span>{ev.content}
+                    </div>
+                  )
+                  if (ev.type === 'tool') {
+                    const icons = { exec: '⚡', Bash: '⚡', bash: '⚡', Read: '📖', Write: '📝', Edit: '✏️', web_search: '🔍', web_fetch: '🌐' }
+                    const icon = icons[ev.name] || '🔧'
+                    return (
+                      <div key={i} style={{ color: '#79c0ff', marginBottom: '2px' }}>
+                        {icon} <span style={{ color: '#f0883e' }}>{ev.name}</span>
+                        {ev.detail && <span style={{ color: '#8b949e' }}> {ev.detail}</span>}
+                      </div>
+                    )
+                  }
+                  if (ev.type === 'result') return (
+                    <div key={i} style={{ color: '#56d364', marginBottom: '4px', paddingLeft: '12px', borderLeft: '2px solid #238636' }}>
+                      {ev.content}
+                    </div>
+                  )
+                  if (ev.type === 'text') return (
+                    <div key={i} style={{ color: '#e6edf3', marginBottom: '4px', background: '#161b22', padding: '4px 8px', borderRadius: '4px' }}>
+                      {ev.content}
+                    </div>
+                  )
+                  return null
+                })}
+                {liveStatus === 'connected' && liveEvents.length === 0 && (
+                  <div style={{ color: '#58a6ff' }}>🟢 Connected — waiting for agent activity...</div>
+                )}
+              </div>
+            )}
           </div>
           
           {/* Delete Confirmation */}

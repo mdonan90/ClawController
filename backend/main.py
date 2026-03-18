@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -22,6 +22,82 @@ from stuck_task_monitor import run_stuck_task_check, get_monitor_status
 from gateway_watchdog import start_gateway_watchdog, stop_gateway_watchdog, get_watchdog_status, run_health_check, manual_restart
 
 app = FastAPI(title="ClawController API", version="2.0.0")
+
+# Agent token required for endpoints that can transition tasks to DONE
+AGENT_TOKEN = "61a1082e33c524dc21d5364cbf0ac10a26910afd5f65a864bb9aa8e6dff8c30d"
+
+GITHUB_TOKEN = os.getenv("GH_TOKEN")
+
+
+def auto_merge_pr(db: Session, task_id: str) -> Optional[str]:
+    """Extract PR URL from task activity and merge it on GitHub.
+    Returns a status message or None if no PR found."""
+    import re
+    import urllib.request
+    
+    activities = db.query(TaskActivity).filter(TaskActivity.task_id == task_id).all()
+    pr_url = None
+    for a in activities:
+        msg = a.message or ""
+        # Match patterns like: PR: https://github.com/Org/Repo/pull/123
+        match = re.search(r'https://github\.com/([^/]+/[^/]+)/pull/(\d+)', msg)
+        if match:
+            pr_url = match.group(0)
+            repo = match.group(1)
+            pr_number = match.group(2)
+            break
+    
+    if not pr_url:
+        return None
+    
+    if not GITHUB_TOKEN:
+        return "⚠️ GH_TOKEN not configured; cannot auto-merge PR"
+
+    try:
+        merge_url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/merge"
+        data = json.dumps({"merge_method": "squash"}).encode("utf-8")
+        req = urllib.request.Request(merge_url, data=data, method="PUT", headers={
+            "Authorization": f"token {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github.v3+json",
+            "Content-Type": "application/json",
+        })
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            result = json.loads(resp.read())
+            if result.get("merged"):
+                # Close the GitHub issue if task title contains an issue number
+                issue_match = re.search(r'#(\d+)', db.query(Task).filter(Task.id == task_id).first().title or "")
+                if issue_match:
+                    issue_num = issue_match.group(1)
+                    close_url = f"https://api.github.com/repos/{repo}/issues/{issue_num}"
+                    close_req = urllib.request.Request(close_url, 
+                        data=json.dumps({"state": "closed"}).encode("utf-8"),
+                        method="PATCH",
+                        headers={
+                            "Authorization": f"token {GITHUB_TOKEN}",
+                            "Accept": "application/vnd.github.v3+json",
+                            "Content-Type": "application/json",
+                        })
+                    try:
+                        urllib.request.urlopen(close_req, timeout=10)
+                    except Exception:
+                        pass  # Non-critical if issue close fails
+                return f"✅ PR #{pr_number} merged to main ({repo})"
+            return f"⚠️ PR #{pr_number} merge response: {result.get('message', 'unknown')}"
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        return f"⚠️ PR #{pr_number} merge failed ({e.code}): {body[:200]}"
+    except Exception as e:
+        return f"⚠️ PR #{pr_number} merge error: {str(e)[:200]}"
+
+
+def require_agent_token(x_agent_token: Optional[str] = Header(None, alias="X-Agent-Token")):
+    """Dependency that enforces X-Agent-Token header for privileged endpoints."""
+    if x_agent_token != AGENT_TOKEN:
+        raise HTTPException(
+            status_code=403,
+            detail="X-Agent-Token header required. Only authorized reviewers can perform this action."
+        )
+    return x_agent_token
 
 # CORS for frontend (allow all origins for remote access)
 app.add_middleware(
@@ -258,20 +334,46 @@ def notify_reviewer(task, submitted_by: str = None):
     else:
         deliverables_text = "\n**Deliverables:** None specified\n"
     
-    message = f"""📋 Task ready for review: {task.title}
+    message = f"""📋 REVIEW REQUIRED: {task.title}
 
-**Submitted by:** {agent_name}
-**Task ID:** {task.id}
-**Status:** REVIEW
-**Description:** {(task.description[:300] + '...') if task.description and len(task.description) > 300 else (task.description or 'No description')}
+Task {task.id} has been submitted for review by {agent_name}. You must perform a real code review before approving.
+
+**Description:** {(task.description[:400] + '...') if task.description and len(task.description) > 400 else (task.description or 'No description')}
 {deliverables_text}
-**Review Required:** Please review this task in ClawController and either approve or reject it with feedback.
 
-**Actions:**
-- Approve: `curl -X POST http://localhost:8000/api/tasks/{task.id}/approve`
-- Reject: `curl -X POST http://localhost:8000/api/tasks/{task.id}/reject -d '{{"feedback": "YOUR_FEEDBACK"}}'`
+## Your Review Checklist (do ALL of these)
 
-View in ClawController: http://localhost:5001/tasks/{task.id}"""
+0. Check activity log for a PR URL — if no PR was opened, REJECT immediately:
+   curl -s http://localhost:8000/api/tasks/{task.id}/activity | python3 -c "import sys,json; items=json.load(sys.stdin); pr=[i for i in items if 'PR:' in i.get('message','') or 'pull/' in i.get('message','')]; print('PR found' if pr else 'NO PR — REJECT')"
+
+1. Fetch full task details:
+   curl -s http://localhost:8000/api/tasks/{task.id} | python3 -m json.tool
+
+2. Identify the repo from the task tags, then check the PR and git log:
+   cd ~/arctiq-one && git log --oneline -10
+   GH_TOKEN=${GH_TOKEN} gh pr list --repo <repo> --state open
+   git diff HEAD~1 --stat
+   git diff HEAD~1
+
+3. Read the key changed files and verify implementation matches the task spec
+
+4. Log your review findings (REQUIRED before approving):
+   curl -X POST http://localhost:8000/api/tasks/{task.id}/activity \\
+     -H "Content-Type: application/json" \\
+     -H "X-Agent-Token: 61a1082e33c524dc21d5364cbf0ac10a26910afd5f65a864bb9aa8e6dff8c30d" \\
+     -d '{{"agent_id": "main", "message": "REVIEW: [what you checked, what passed, any concerns]"}}'
+
+5. Approve or reject:
+   - Approve: curl -X POST http://localhost:8000/api/tasks/{task.id}/review \\
+       -H "Content-Type: application/json" \\
+       -H "X-Agent-Token: 61a1082e33c524dc21d5364cbf0ac10a26910afd5f65a864bb9aa8e6dff8c30d" \\
+       -d '{{"action": "approve", "agent_id": "main", "notes": "YOUR REVIEW SUMMARY"}}'
+   - Reject: curl -X POST http://localhost:8000/api/tasks/{task.id}/review \\
+       -H "Content-Type: application/json" \\
+       -H "X-Agent-Token: 61a1082e33c524dc21d5364cbf0ac10a26910afd5f65a864bb9aa8e6dff8c30d" \\
+       -d '{{"action": "reject", "agent_id": "main", "notes": "SPECIFIC FEEDBACK FOR DEV"}}'
+
+Do NOT approve without logging your review findings first."""
 
     try:
         subprocess.Popen(
@@ -286,11 +388,16 @@ View in ClawController: http://localhost:5001/tasks/{task.id}"""
 
 # Helper to notify agent when their task is rejected
 def notify_task_rejected(task, feedback: str = None, rejected_by: str = None):
-    """Notify agent when their task is rejected and sent back."""
+    """Notify agent when their task is rejected and sent back.
+
+    Routes to the task-specific session (task-{short_id}) so the rejection
+    lands in the same isolated session the dev agent is working in.
+    """
     if not task.assignee_id:
         return
     
     reviewer_name = rejected_by or "Reviewer"
+    session_id = f"task-{task.id[:8]}"
     
     message = f"""🔄 Task sent back for changes: {task.title}
 
@@ -307,22 +414,31 @@ View in ClawController: http://localhost:5001"""
 
     try:
         subprocess.Popen(
-            ["openclaw", "agent", "--agent", task.assignee_id, "--message", message],
+            ["openclaw", "agent", "--agent", task.assignee_id,
+             "--session-id", session_id, "--message", message],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             cwd=str(Path.home())
         )
-        print(f"Notified agent {task.assignee_id} of task rejection: {task.title}")
+        print(f"Notified agent {task.assignee_id} of task rejection (session={session_id}): {task.title}")
     except Exception as e:
         print(f"Failed to notify agent {task.assignee_id} of rejection: {e}")
 
 # Helper to notify agent when task is assigned
 def notify_agent_of_task(task):
-    """Notify agent via OpenClaw when a task is assigned to them."""
+    """Notify agent via OpenClaw when a task is assigned to them.
+
+    Uses --session-id task-{short_id} so every task gets its own isolated
+    session slot — tasks never queue behind each other on the main session.
+    """
     if not task.assignee_id:
         return
-    if task.status not in [TaskStatus.ASSIGNED, TaskStatus.IN_PROGRESS]:
+    # Only notify for freshly ASSIGNED tasks — don't re-notify if already running or further along
+    if task.status != TaskStatus.ASSIGNED:
         return
+
+    short_id = task.id[:8]
+    session_id = f"task-{short_id}"
     
     description_preview = (task.description[:500] + '...') if task.description and len(task.description) > 500 else (task.description or 'No description')
     
@@ -341,12 +457,13 @@ Post an activity with 'completed' or 'done' in the message - the system will aut
 
     try:
         subprocess.Popen(
-            ["openclaw", "agent", "--agent", task.assignee_id, "--message", message],
+            ["openclaw", "agent", "--agent", task.assignee_id,
+             "--session-id", session_id, "--message", message],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             cwd=str(Path.home())
         )
-        print(f"Notified agent {task.assignee_id} of task: {task.title}")
+        print(f"Notified agent {task.assignee_id} of task {task.id} (session={session_id}): {task.title}")
     except Exception as e:
         print(f"Failed to notify agent {task.assignee_id}: {e}")
 
@@ -445,6 +562,191 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
+
+def parse_transcript_line(line: str) -> dict | None:
+    """Parse a JSONL transcript line into a display event."""
+    try:
+        obj = json.loads(line)
+        msg = obj.get("message", obj)
+        role = msg.get("role", "")
+        content = msg.get("content", [])
+        ts = obj.get("timestamp", "")
+
+        if not isinstance(content, list):
+            return None
+
+        events = []
+        for item in content:
+            if not isinstance(item, dict):
+                continue
+            t = item.get("type", "")
+            if t == "text":
+                text = item.get("text", "").strip()
+                if text:
+                    events.append({"type": "text", "role": role, "content": text, "ts": ts})
+            elif t == "thinking":
+                think = item.get("thinking", "").strip()
+                if think:
+                    events.append({"type": "thinking", "content": think[:300], "ts": ts})
+            elif t in ("toolUse", "tool_use", "toolCall"):
+                name = item.get("name", "")
+                args = item.get("input") or item.get("arguments") or {}
+                if isinstance(args, dict):
+                    if name in ("exec", "Bash", "bash"):
+                        detail = args.get("command", str(args))[:200]
+                    elif name in ("Read", "Write", "Edit", "read", "write", "edit"):
+                        detail = args.get("file_path") or args.get("path", str(args)[:100])
+                    elif name == "web_search":
+                        detail = args.get("query", "")
+                    elif name == "web_fetch":
+                        detail = args.get("url", "")
+                    else:
+                        detail = str(args)[:150]
+                else:
+                    detail = str(args)[:150]
+                events.append({"type": "tool", "name": name, "detail": detail, "ts": ts})
+            elif t == "toolResult":
+                result_content = item.get("content", [])
+                if isinstance(result_content, list):
+                    for rc in result_content:
+                        if isinstance(rc, dict) and rc.get("type") == "text":
+                            events.append({"type": "result", "content": rc.get("text", "")[:300], "ts": ts})
+                            break
+                elif isinstance(result_content, str):
+                    events.append({"type": "result", "content": result_content[:300], "ts": ts})
+        return events if events else None
+    except Exception:
+        return None
+
+
+@app.websocket("/ws/tasks/{task_id}/stream")
+async def stream_task_session(websocket: WebSocket, task_id: str, db: Session = Depends(get_db)):
+    """Stream live agent activity for a task from its session transcript."""
+    await websocket.accept()
+
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        await websocket.send_json({"type": "error", "message": "Task not found"})
+        await websocket.close()
+        return
+
+    agent_id = task.assignee_id or "dev"
+    # Session key format used by the route endpoint: agent:{agent_id}:task-{task_id}
+    task_session_key = f"agent:{agent_id}:task-{task_id}"
+    home = Path.home()
+    sessions_json = home / ".openclaw" / "agents" / agent_id / "sessions" / "sessions.json"
+
+    # Find transcript: look up by exact session key first, then stored session_file
+    transcript_path = None
+    sessions_dir = home / ".openclaw" / "agents" / agent_id / "sessions"
+
+    def find_transcript():
+        # 0. Use stored session_file path on the task (most reliable — set by route endpoint)
+        if task.session_file:
+            candidate = Path(task.session_file)
+            if candidate.exists():
+                return candidate
+
+        # 1. Look up the exact session key in sessions.json
+        #    The route endpoint creates "agent:{agent_id}:task-{task_id}" as the session key.
+        #    Each entry has a sessionId (UUID) and sessionFile pointing to the JSONL transcript.
+        try:
+            if sessions_json.exists():
+                with open(sessions_json) as f:
+                    sessions_data = json.load(f)
+
+                # Primary: exact session key match
+                entry = sessions_data.get(task_session_key)
+                if entry:
+                    sf = entry.get("sessionFile")
+                    if sf:
+                        candidate = Path(sf)
+                        if candidate.exists():
+                            return candidate
+                    # Fall back to UUID JSONL
+                    uuid = entry.get("sessionId")
+                    if uuid:
+                        candidate = sessions_dir / f"{uuid}.jsonl"
+                        if candidate.exists():
+                            return candidate
+
+                # Legacy fallback: partial key match (short task_id prefix)
+                short_id = task_id[:8]
+                for key, sdata in sessions_data.items():
+                    if f"task-{short_id}" in key and key.startswith(f"agent:{agent_id}:"):
+                        sf = sdata.get("sessionFile")
+                        if sf:
+                            candidate = Path(sf)
+                            if candidate.exists():
+                                return candidate
+                        uuid = sdata.get("sessionId")
+                        if uuid:
+                            candidate = sessions_dir / f"{uuid}.jsonl"
+                            if candidate.exists():
+                                return candidate
+        except Exception:
+            pass
+
+        # NOTE: No fallback to "most recently modified file" — that causes cross-task bleed.
+        return None
+
+    transcript_path = find_transcript()
+
+    # If still not found, wait up to 30s for the task session to start
+    if not transcript_path:
+        for attempt in range(60):  # 60 × 0.5s = 30s
+            await websocket.send_json({"type": "waiting", "message": f"Waiting for agent session to start... ({attempt + 1})"})
+            await asyncio.sleep(0.5)
+            # Re-read task to pick up session_file if route endpoint just set it
+            db.refresh(task)
+            transcript_path = find_transcript()
+            if transcript_path:
+                break
+
+    if not transcript_path:
+        await websocket.send_json({"type": "error", "message": f"Agent session not found for task {short_id}. Task may not have started yet."})
+        await websocket.close()
+        return
+
+    await websocket.send_json({"type": "connected", "message": f"Streaming {agent_id} session ({transcript_path.name})..."})
+
+    # Tail the transcript file, backfilling the last 60 lines first
+    try:
+        with open(transcript_path, "r", errors="replace") as f:
+            all_lines = f.readlines()
+            # Send last 60 lines as backfill
+            backfill_lines = all_lines[-60:] if len(all_lines) > 60 else all_lines
+            for line in backfill_lines:
+                events = parse_transcript_line(line.strip())
+                if events:
+                    for event in events:
+                        event["backfill"] = True
+                        await websocket.send_json(event)
+            # Now tail from current end for live events
+            f.seek(0, 2)
+            while True:
+                line = f.readline()
+                if line:
+                    events = parse_transcript_line(line.strip())
+                    if events:
+                        for event in events:
+                            await websocket.send_json(event)
+                else:
+                    await asyncio.sleep(0.2)
+                # Check if client disconnected
+                try:
+                    await asyncio.wait_for(websocket.receive_text(), timeout=0.01)
+                except asyncio.TimeoutError:
+                    pass
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        try:
+            await websocket.send_json({"type": "error", "message": str(e)})
+        except Exception:
+            pass
+
+
 # Agent endpoints
 @app.get("/api/agents", response_model=List[AgentResponse])
 def get_agents(db: Session = Depends(get_db)):
@@ -516,7 +818,7 @@ class OpenClawAgentResponse(BaseModel):
     status: str
     emoji: Optional[str] = None
     workspace: Optional[str] = None
-    model: Optional[dict] = None
+    model: Optional[str | dict] = None
 
 @app.get("/api/openclaw/agents", response_model=List[OpenClawAgentResponse])
 def get_openclaw_agents(db: Session = Depends(get_db)):
@@ -811,6 +1113,16 @@ async def create_task(task_data: TaskCreate, db: Session = Depends(get_db)):
         "auto_assigned": auto_assigned
     }
 
+@app.patch("/api/tasks/{task_id}/session-file")
+def set_task_session_file(task_id: str, data: dict, db: Session = Depends(get_db)):
+    """Store the session transcript path for a task so Live stream can find it."""
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    task.session_file = data.get("session_file")
+    db.commit()
+    return {"ok": True, "session_file": task.session_file}
+
 @app.get("/api/tasks/{task_id}")
 def get_task(task_id: str, db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
@@ -835,7 +1147,7 @@ def get_task(task_id: str, db: Session = Depends(get_db)):
                 "id": c.id,
                 "content": c.content,
                 "agent_id": c.agent_id,
-                "agent": {"id": c.agent.id, "name": c.agent.name, "avatar": c.agent.avatar},
+                "agent": {"id": c.agent.id, "name": c.agent.name, "avatar": c.agent.avatar} if c.agent else None,
                 "created_at": c.created_at.isoformat()
             } for c in task.comments
         ],
@@ -964,7 +1276,7 @@ class ReviewAction(BaseModel):
     reviewer: Optional[str] = None  # For sending to review
 
 @app.post("/api/tasks/{task_id}/review")
-async def review_task(task_id: str, review_data: ReviewAction, db: Session = Depends(get_db)):
+async def review_task(task_id: str, review_data: ReviewAction, db: Session = Depends(get_db), x_agent_token: Optional[str] = Header(None, alias="X-Agent-Token")):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -981,7 +1293,12 @@ async def review_task(task_id: str, review_data: ReviewAction, db: Session = Dep
                           description=f"Task sent for review to {task.reviewer_id}")
     
     elif review_data.action == "approve":
-        # Approve and move to DONE - ONLY reviewers can approve
+        # Approve and move to DONE - ONLY authorized reviewers can approve
+        if x_agent_token != AGENT_TOKEN:
+            raise HTTPException(
+                status_code=403,
+                detail="X-Agent-Token header required to approve tasks. Only authorized reviewers can approve."
+            )
         if task.status != TaskStatus.REVIEW:
             raise HTTPException(status_code=400, detail="Task is not in REVIEW status")
         
@@ -1006,6 +1323,16 @@ async def review_task(task_id: str, review_data: ReviewAction, db: Session = Dep
             message=f"✅ Approved and marked DONE by {old_reviewer}"
         )
         db.add(activity)
+        
+        # Auto-merge PR on GitHub if one exists in the activity log
+        merge_result = auto_merge_pr(db, task_id)
+        if merge_result:
+            merge_activity = TaskActivity(
+                task_id=task_id,
+                agent_id="system",
+                message=merge_result
+            )
+            db.add(merge_activity)
         
         # Notify task completion to main agent
         db.commit()
@@ -1058,8 +1385,8 @@ async def review_task(task_id: str, review_data: ReviewAction, db: Session = Dep
 
 # Dedicated approve endpoint
 @app.post("/api/tasks/{task_id}/approve")
-async def approve_task(task_id: str, db: Session = Depends(get_db)):
-    """Approve a task in REVIEW status and move it to DONE."""
+async def approve_task(task_id: str, db: Session = Depends(get_db), _token: str = Depends(require_agent_token)):
+    """Approve a task in REVIEW status and move it to DONE. Requires X-Agent-Token."""
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -1169,7 +1496,12 @@ def get_agent_id_by_name(name: str, db: Session) -> str | None:
     return None
 
 async def route_mention_to_agent(agent_id: str, task: Task, comment_content: str, commenter_name: str):
-    """Send a message to an agent when @mentioned in a task comment."""
+    """Send a message to an agent when @mentioned in a task comment.
+
+    Routes to the task-specific session (task-{short_id}) if the mentioned
+    agent is the task assignee, so the mention lands in the right context.
+    Falls back to the agent's main session for non-assignee mentions.
+    """
     # Build context message for the agent
     message = f"""You were mentioned in a task comment.
 
@@ -1185,14 +1517,16 @@ Please review and respond appropriately. You can reply by adding a comment to th
 curl -X POST http://localhost:8000/api/tasks/{task.id}/comments -H "Content-Type: application/json" -d '{{"agent_id": "{agent_id}", "content": "Your response here"}}'
 ```"""
 
+    # Use the task-specific session if the mentioned agent is the assignee
+    cmd = ["openclaw", "agent", "--agent", agent_id]
+    if task.assignee_id == agent_id:
+        session_id = f"task-{task.id[:8]}"
+        cmd += ["--session-id", session_id]
+    cmd += ["--message", message]
+
     try:
-        # Use subprocess to call OpenClaw CLI
         subprocess.Popen(
-            [
-                "openclaw", "agent",
-                "--agent", agent_id,
-                "--message", message
-            ],
+            cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             cwd=str(Path.home())
@@ -1301,6 +1635,29 @@ async def add_task_activity(task_id: str, activity_data: TaskActivityCreate, db:
             new_status = TaskStatus.IN_PROGRESS
     
     # Add the activity AFTER checking for auto-transitions
+    # Deduplicate: skip if same agent posted the same message within the last 60 seconds
+    from datetime import datetime, timedelta
+    sixty_seconds_ago = datetime.utcnow() - timedelta(seconds=60)
+    duplicate = db.query(TaskActivity).filter(
+        TaskActivity.task_id == task_id,
+        TaskActivity.agent_id == activity_data.agent_id,
+        TaskActivity.message == activity_data.message,
+        TaskActivity.timestamp >= sixty_seconds_ago
+    ).first()
+
+    if duplicate:
+        # Return the existing activity rather than inserting a duplicate
+        db.refresh(duplicate)
+        agent = db.query(Agent).filter(Agent.id == activity_data.agent_id).first()
+        return {
+            "id": duplicate.id,
+            "task_id": task_id,
+            "agent_id": duplicate.agent_id,
+            "message": duplicate.message,
+            "timestamp": duplicate.timestamp.isoformat(),
+            "deduplicated": True
+        }
+
     activity = TaskActivity(
         task_id=task_id,
         agent_id=activity_data.agent_id,
@@ -1756,28 +2113,24 @@ class RouteTaskRequest(BaseModel):
 @app.post("/api/tasks/{task_id}/route")
 async def route_task_to_agent(task_id: str, request: RouteTaskRequest = None, db: Session = Depends(get_db)):
     """Route a task to its assigned agent with a truly independent parallel session.
-
-    Uses the OpenClaw gateway `chat.send` RPC with an explicit per-task sessionKey
-    of the form ``agent:{agent_id}:task-{task_id}``.
-
-    Why this achieves true parallelism:
-    - ``openclaw agent --agent dev`` always routes to ``agent:dev:main``, so all tasks
-      queue behind each other on that single session slot.
-    - By providing a unique sessionKey per task, each task runs on its own gateway
-      session slot independently — no queueing.
-    - ``chat.send`` returns immediately (status="started") — the route endpoint is
-      non-blocking and returns in <1s regardless of task duration.
-    - The gateway enforces concurrency via ``agents.defaults.maxConcurrent`` (currently 4),
-      which applies per-lane, not per unique session key, so multiple task sessions
-      run truly in parallel.
+    
+    Uses the OpenClaw gateway chat.send RPC with an explicit per-task sessionKey
+    (agent:{agent_id}:task-{task_id}) to create an isolated session slot.
+    
+    This ensures TRUE parallel execution because:
+    - Each task maps to a DIFFERENT gateway session key (not agent:dev:main)
+    - chat.send returns immediately ("started") — non-blocking fire-and-forget
+    - No subprocess threads consumed in the ClawController process
+    - The gateway handles concurrency (maxConcurrent controls simultaneous runs)
+    - Session file tracked per-task for live stream support
     """
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-
+    
     if not task.assignee_id:
         raise HTTPException(status_code=400, detail="Task has no assignee")
-
+    
     # Build the task message
     short_id = task_id[:8]
 
@@ -1839,10 +2192,10 @@ curl -X PATCH http://localhost:8000/api/tasks/{task_id} \\
 ```
 
 **Do NOT merge your own PR. Submit it and ClawController will auto-merge on approval.**"""
-
+    
     if request and request.message:
         task_message = request.message
-
+    
     # Log the routing — skip if the last entry already says "Routing" (deduplicate)
     last_activity = db.query(TaskActivity).filter(
         TaskActivity.task_id == task_id
@@ -1859,11 +2212,19 @@ curl -X PATCH http://localhost:8000/api/tasks/{task_id} \\
 
     # === TRUE PARALLEL EXECUTION via gateway chat.send ===
     #
-    # Each task gets a unique session key: agent:{agent_id}:task-{task_id}
-    # This bypasses the agent:dev:main queue entirely.
-    # chat.send is non-blocking — returns "started" immediately.
+    # The key insight: openclaw agent --agent dev always routes to session key
+    # "agent:dev:main", which queues all tasks sequentially on that one slot.
+    #
+    # By using `openclaw gateway call chat.send` with an EXPLICIT sessionKey
+    # of the form "agent:{agent_id}:task-{task_id}", each task gets its own
+    # isolated session slot → truly parallel execution.
+    #
+    # chat.send returns immediately with {"status": "started"} so it's
+    # non-blocking — no subprocess threads held in ClawController.
+
+    # Unique session key per task — full task_id prevents collisions
     session_key = f"agent:{task.assignee_id}:task-{task_id}"
-    # Idempotency key prevents double-dispatch if route is called twice
+    # Idempotency key: prevents double-dispatch if route is called twice for the same task
     idempotency_key = f"route-{task_id}"
 
     try:
@@ -1884,30 +2245,26 @@ curl -X PATCH http://localhost:8000/api/tasks/{task_id} \\
 
         if result.returncode != 0:
             stderr_msg = result.stderr.strip()
-            # Idempotency hit is not an error
+            # If "already started" / idempotency hit, that's OK
             if "already" in stderr_msg.lower() or "idempotent" in stderr_msg.lower():
                 print(f"[route] Task {task_id} already routed (idempotency hit)")
             else:
-                raise Exception(f"gateway chat.send failed: {stderr_msg[:300]}")
+                raise Exception(f"gateway call failed: {stderr_msg[:300]}")
 
-        # Parse run_id from gateway response
+        # Parse run ID from response for tracking
         run_id = None
         try:
-            # stdout has a header line "Gateway call: chat.send\n" then JSON
-            lines = result.stdout.strip().splitlines()
-            json_line = next((l for l in lines if l.startswith("{")), None)
-            if json_line:
-                resp = json.loads(json_line)
-                run_id = resp.get("runId")
+            resp = json.loads(result.stdout.strip().split("\n", 1)[-1])  # skip "Gateway call: ..." prefix line
+            run_id = resp.get("runId")
         except Exception:
             pass
 
-        # Background task: once the gateway creates the session JSONL file,
-        # persist its path on the task so the live stream endpoint can find it.
+        # Schedule a background task to persist the session file path once the
+        # gateway creates it. This powers the live stream endpoint.
         async def persist_session_file_by_key(agent_id: str, skey: str, tid: str):
             sessions_dir = Path.home() / ".openclaw" / "agents" / agent_id / "sessions"
             sessions_json_path = sessions_dir / "sessions.json"
-            for _ in range(120):  # poll up to 60s
+            for _ in range(60):  # poll up to 30s (0.5s intervals)
                 await asyncio.sleep(0.5)
                 try:
                     if sessions_json_path.exists():
@@ -1932,7 +2289,7 @@ curl -X PATCH http://localhost:8000/api/tasks/{task_id} \\
 
         asyncio.create_task(persist_session_file_by_key(task.assignee_id, session_key, task_id))
 
-        # Mark task IN_PROGRESS
+        # Update task status to IN_PROGRESS
         task.status = TaskStatus.IN_PROGRESS
         db.commit()
 
@@ -2859,48 +3216,138 @@ def delete_agent(agent_id: str):
 
 @app.get("/api/agents/{agent_id}/model-status", response_model=AgentModelStatus)
 def get_agent_model_status(agent_id: str, db: Session = Depends(get_db)):
-    """Get current model status and configuration for an agent."""
-    agent = db.query(Agent).filter(Agent.id == agent_id).first()
-    if not agent:
-        raise HTTPException(status_code=404, detail="Agent not found")
+    """Get current model status and configuration for an agent from OpenClaw config."""
+    # Read from OpenClaw config (source of truth)
+    config = read_openclaw_config()
+    if not config:
+        raise HTTPException(status_code=500, detail="OpenClaw config not found")
     
-    is_using_fallback = (agent.current_model == agent.fallback_model and 
-                        agent.fallback_model is not None and 
-                        agent.current_model != agent.primary_model)
+    agents_list = config.get("agents", {}).get("list", [])
+    openclaw_agent = None
+    for a in agents_list:
+        if a.get("id") == agent_id:
+            openclaw_agent = a
+            break
+    
+    if not openclaw_agent:
+        raise HTTPException(status_code=404, detail="Agent not found in OpenClaw config")
+    
+    # Extract model info from OpenClaw config
+    model_config = openclaw_agent.get("model", {})
+    if isinstance(model_config, str):
+        # Simple model string
+        primary_model = model_config
+        fallback_model = None
+    else:
+        primary_model = model_config.get("primary", "")
+        fallbacks = model_config.get("fallbacks", [])
+        fallback_model = fallbacks[0] if fallbacks else None
+    
+    # Check ClawController DB for runtime state (failure count, current model)
+    db_agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    model_failure_count = db_agent.model_failure_count if db_agent else 0
+    current_model = db_agent.current_model if db_agent else primary_model
+    
+    is_using_fallback = (current_model == fallback_model and 
+                        fallback_model is not None and 
+                        current_model != primary_model)
     
     return AgentModelStatus(
-        agent_id=agent.id,
-        primary_model=agent.primary_model,
-        fallback_model=agent.fallback_model,
-        current_model=agent.current_model or agent.primary_model,
-        model_failure_count=agent.model_failure_count or 0,
+        agent_id=agent_id,
+        primary_model=primary_model,
+        fallback_model=fallback_model,
+        current_model=current_model or primary_model,
+        model_failure_count=model_failure_count,
         is_using_fallback=is_using_fallback
     )
+
+def get_openclaw_config_path():
+    """Get the path to OpenClaw config file."""
+    return Path.home() / ".openclaw" / "openclaw.json"
+
+def read_openclaw_config():
+    """Read the OpenClaw configuration file."""
+    config_path = get_openclaw_config_path()
+    if not config_path.exists():
+        return None
+    with open(config_path, 'r') as f:
+        return json.load(f)
+
+def write_openclaw_config(config):
+    """Write the OpenClaw configuration file."""
+    config_path = get_openclaw_config_path()
+    with open(config_path, 'w') as f:
+        json.dump(config, f, indent=2)
+
+def update_openclaw_agent_model(agent_id: str, primary_model: str = None, fallback_model: str = None):
+    """Update an agent's model in the OpenClaw config file."""
+    config = read_openclaw_config()
+    if not config:
+        raise Exception("OpenClaw config not found")
+    
+    agents_list = config.get("agents", {}).get("list", [])
+    agent_found = False
+    
+    for agent in agents_list:
+        if agent.get("id") == agent_id:
+            agent_found = True
+            # Initialize model object if it doesn't exist
+            if "model" not in agent:
+                agent["model"] = {}
+            
+            # Update primary model
+            if primary_model:
+                agent["model"]["primary"] = primary_model
+            
+            # Update fallback model
+            if fallback_model:
+                agent["model"]["fallbacks"] = [fallback_model]
+            elif fallback_model == "":
+                # Empty string means remove fallbacks
+                agent["model"].pop("fallbacks", None)
+            
+            break
+    
+    if not agent_found:
+        raise Exception(f"Agent {agent_id} not found in OpenClaw config")
+    
+    # Write updated config
+    write_openclaw_config(config)
+    return True
 
 @app.patch("/api/agents/{agent_id}/models")
 async def update_agent_models(agent_id: str, request: UpdateAgentModelsRequest, 
                              db: Session = Depends(get_db)):
-    """Update agent model configuration."""
+    """Update agent model configuration directly in OpenClaw config (source of truth)."""
+    
+    # Update OpenClaw config file (source of truth) - this is what matters
+    try:
+        update_openclaw_agent_model(
+            agent_id, 
+            primary_model=request.primary_model,
+            fallback_model=request.fallback_model
+        )
+        print(f"✅ Updated OpenClaw config for agent {agent_id}: primary={request.primary_model}, fallback={request.fallback_model}")
+    except Exception as e:
+        print(f"⚠️ Failed to update OpenClaw config: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update OpenClaw config: {e}")
+    
+    # Also update ClawController database if agent exists there (optional sync)
     agent = db.query(Agent).filter(Agent.id == agent_id).first()
-    if not agent:
-        raise HTTPException(status_code=404, detail="Agent not found")
-    
-    # Update model fields
-    if request.primary_model is not None:
-        agent.primary_model = request.primary_model
-        # Reset to primary model if we're updating it
-        agent.current_model = request.primary_model
-        agent.model_failure_count = 0
-    
-    if request.fallback_model is not None:
-        agent.fallback_model = request.fallback_model
+    if agent:
+        if request.primary_model is not None:
+            agent.primary_model = request.primary_model
+            agent.current_model = request.primary_model
+            agent.model_failure_count = 0
+        if request.fallback_model is not None:
+            agent.fallback_model = request.fallback_model
+        db.commit()
     
     # Log the model update
     await log_activity(db, "model_updated", agent_id=agent_id, 
                       description=f"Models updated: primary={request.primary_model}, fallback={request.fallback_model}")
     
-    db.commit()
-    return {"ok": True, "agent": agent}
+    return {"ok": True, "agent_id": agent_id, "openclaw_updated": True}
 
 @app.post("/api/agents/{agent_id}/model-failure")
 async def report_model_failure(agent_id: str, failure_report: ModelFailureReport, 
