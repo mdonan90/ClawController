@@ -2109,22 +2109,70 @@ curl -X PATCH http://localhost:8000/api/tasks/{task_id} \\
         db.add(activity)
         db.commit()
     
-    # Spawn isolated session for this task (fire-and-forget — don't wait for LLM response)
-    # Each task gets its own --session-id so they run in parallel, not queued
+    # Each task gets a unique session_id for tracking
     session_id = f"task-{task_id[:8]}"
-    try:
-        subprocess.Popen(
-            [
-                "openclaw", "agent",
-                "--agent", task.assignee_id,
-                "--session-id", session_id,
-                "--message", task_message
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            cwd=str(Path.home())
-        )
+
+    async def run_agent_turn_async(agent_id: str, message: str, sid: str, tid: str):
+        """Run the agent turn via the gateway HTTP API in a background asyncio task.
         
+        Uses the OpenClaw gateway's /v1/chat/completions endpoint directly so that
+        multiple tasks can execute CONCURRENTLY (each in its own asyncio task) instead
+        of queuing sequentially behind openclaw agent CLI calls that all share the
+        same agent:dev:main session slot.
+        """
+        import urllib.request
+        import urllib.error
+
+        # Load gateway config from openclaw.json
+        try:
+            config_path = Path.home() / ".openclaw" / "openclaw.json"
+            with open(config_path) as f:
+                config = json.load(f)
+            gateway_port = config.get("gateway", {}).get("port", 18789)
+            gateway_token = config.get("gateway", {}).get("auth", {}).get("token", "")
+        except Exception:
+            gateway_port = 18789
+            gateway_token = ""
+
+        gateway_url = f"http://localhost:{gateway_port}/v1/chat/completions"
+
+        body = json.dumps({
+            "model": agent_id,
+            "messages": [{"role": "user", "content": message}],
+            "stream": False,
+        }).encode("utf-8")
+
+        headers = {
+            "Content-Type": "application/json",
+        }
+        if gateway_token:
+            headers["Authorization"] = f"Bearer {gateway_token}"
+
+        try:
+            # Use asyncio executor to avoid blocking the event loop
+            loop = asyncio.get_event_loop()
+            def do_request():
+                req = urllib.request.Request(gateway_url, data=body, headers=headers)
+                try:
+                    resp = urllib.request.urlopen(req, timeout=900)
+                    return resp.read()
+                except urllib.error.HTTPError as e:
+                    return e.read()
+                except Exception as ex:
+                    return f"Error: {ex}".encode()
+            
+            await loop.run_in_executor(None, do_request)
+        except Exception as e:
+            print(f"[route] Agent turn error for task {tid}: {e}")
+
+    try:
+        # Fire-and-forget: spawn the agent turn as a background asyncio task.
+        # Each task gets its own independent asyncio task → they run in parallel,
+        # not queued on a single session slot like `openclaw agent --agent dev` does.
+        asyncio.create_task(
+            run_agent_turn_async(task.assignee_id, task_message, session_id, task_id)
+        )
+
         # Update task status to IN_PROGRESS
         task.status = TaskStatus.IN_PROGRESS
         db.commit()
@@ -2134,9 +2182,9 @@ curl -X PATCH http://localhost:8000/api/tasks/{task_id} \\
             "task_id": task_id,
             "agent_id": task.assignee_id,
             "session_id": session_id,
-            "message": "Task routed — agent is working"
+            "message": "Task routed — agent is working (parallel session)"
         }
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to route task: {str(e)}")
 
