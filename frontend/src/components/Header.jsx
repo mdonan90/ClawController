@@ -1,9 +1,10 @@
-import { Bell, Clock, TrendingUp, TrendingDown, CheckCircle2, BarChart3, X, RefreshCw, Activity, Wifi, WifiOff, AlertTriangle, Bot } from 'lucide-react'
+import { Bell, Clock, TrendingUp, TrendingDown, CheckCircle2, BarChart3, X, RefreshCw, Activity, Wifi, WifiOff, AlertTriangle, Bot, Menu, Users, Plus } from 'lucide-react'
 import { useEffect, useState, useRef } from 'react'
 import { useMissionStore } from '../store/useMissionStore'
 import { formatDistanceToNow } from 'date-fns'
 import { api } from '../api'
 import clawLogo from '../assets/clawcontroller-logo.jpg'
+import { useIsMobile } from '../hooks/useMediaQuery'
 
 const formatTime = (date) =>
   date.toLocaleTimeString('en-US', {
@@ -98,7 +99,7 @@ function NotificationsDropdown() {
                   </div>
                   <div className="notification-text">{notif.text}</div>
                   <div className="notification-time">
-                    {formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(/[Zz]|[+-]\d{2}:?\d{2}$/.test(String(notif.timestamp)) ? notif.timestamp : notif.timestamp + 'Z'), { addSuffix: true })}
                   </div>
                 </div>
                 {!notif.read && <div className="notification-unread-dot" />}
@@ -224,7 +225,105 @@ function SystemStatusDropdown({ onClose }) {
   )
 }
 
-export default function Header() {
+// Mobile Hamburger Drawer
+function HamburgerDrawer({ isOpen, onClose, onOpenAgentDrawer }) {
+  const recurringTasks = useMissionStore((state) => state.recurringTasks)
+  const toggleRecurringPanel = useMissionStore((state) => state.toggleRecurringPanel)
+  const openAgentManagement = useMissionStore((state) => state.openAgentManagement)
+  const openNewTask = useMissionStore((state) => state.openNewTask)
+  const getUnreadCount = useMissionStore((state) => state.getUnreadCount)
+  const toggleNotifications = useMissionStore((state) => state.toggleNotifications)
+  
+  const activeRecurring = recurringTasks.filter((t) => t.is_active).length
+  const unreadCount = getUnreadCount()
+  
+  const handleNewTaskClick = () => {
+    openNewTask()
+    onClose()
+  }
+  
+  const handleRecurringClick = () => {
+    toggleRecurringPanel()
+    onClose()
+  }
+  
+  const handleAgentMgmtClick = () => {
+    openAgentManagement()
+    onClose()
+  }
+
+  const handleAgentsClick = () => {
+    if (onOpenAgentDrawer) {
+      onOpenAgentDrawer()
+    } else {
+      openAgentManagement()
+    }
+    onClose()
+  }
+  
+  const handleNotificationsClick = () => {
+    toggleNotifications()
+    onClose()
+  }
+  
+  if (!isOpen) return null
+  
+  return (
+    <>
+      <div className="hamburger-overlay" onClick={onClose} />
+      <div className="hamburger-drawer">
+        <div className="hamburger-drawer-header">
+          <span className="hamburger-logo">🦞</span>
+          <h3>Menu</h3>
+          <button className="hamburger-close" onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
+        
+        {/* Actions Menu */}
+        <nav className="hamburger-nav">
+          <button className="hamburger-nav-item" onClick={handleAgentsClick}>
+            <Users size={18} />
+            <span>Agents</span>
+          </button>
+          
+          <button className="hamburger-nav-item hamburger-nav-item-primary" onClick={handleNewTaskClick}>
+            <Plus size={18} />
+            <span>New Task</span>
+          </button>
+          
+          <button className="hamburger-nav-item" onClick={handleRecurringClick}>
+            <RefreshCw size={18} />
+            <span>Recurring Tasks</span>
+            {activeRecurring > 0 && (
+              <span className="hamburger-badge">{activeRecurring}</span>
+            )}
+          </button>
+          
+          <button className="hamburger-nav-item" onClick={handleNotificationsClick}>
+            <Bell size={18} />
+            <span>Notifications</span>
+            {unreadCount > 0 && (
+              <span className="hamburger-badge">{unreadCount}</span>
+            )}
+          </button>
+          
+          <button className="hamburger-nav-item" onClick={handleAgentMgmtClick}>
+            <Bot size={18} />
+            <span>Agent Management</span>
+          </button>
+          
+          <a href="/status" className="hamburger-nav-item" onClick={onClose}>
+            <Activity size={18} />
+            <span>System Status</span>
+          </a>
+        </nav>
+      </div>
+    </>
+  )
+}
+
+export default function Header({ onOpenAgentDrawer }) {
   const agents = useMissionStore((state) => state.agents)
   const tasks = useMissionStore((state) => state.tasks)
   const recurringTasks = useMissionStore((state) => state.recurringTasks)
@@ -240,6 +339,9 @@ export default function Header() {
   const [now, setNow] = useState(() => formatTime(new Date()))
   const [showStats, setShowStats] = useState(false)
   const [showStatus, setShowStatus] = useState(false)
+  const [hamburgerOpen, setHamburgerOpen] = useState(false)
+  
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     const timer = setInterval(() => setNow(formatTime(new Date())), 1000)
@@ -273,15 +375,52 @@ export default function Header() {
 
   return (
     <header className="header">
-      <div className="logo">
-        <div className="logo-icon logo-claw">
-          <img src={clawLogo} alt="ClawController" className="logo-image" />
-        </div>
-        <div>
-          <div className="logo-title header-title">CLAWCONTROLLER</div>
-          <div className="logo-subtitle">Multi-Agent Orchestration</div>
-        </div>
-      </div>
+      {isMobile ? (
+        <>
+          {/* Mobile Layout */}
+          <div className="logo logo-mobile">
+            <div className="logo-icon logo-claw">
+              <img src={clawLogo} alt="ClawController" className="logo-image" />
+            </div>
+            <div className="logo-title header-title">CLAWCONTROLLER</div>
+          </div>
+          
+          <div className="mobile-status-container">
+            <button 
+              className={`system-status-pill system-status-pill--${systemStatus} mobile-status`}
+              onClick={() => setShowStatus(!showStatus)}
+            >
+              <span className="system-status-dot" />
+            </button>
+            {showStatus && <SystemStatusDropdown onClose={() => setShowStatus(false)} />}
+          </div>
+          
+          <button 
+            className="hamburger-button"
+            onClick={() => setHamburgerOpen(true)}
+            aria-label="Open menu"
+          >
+            <Menu size={24} />
+          </button>
+          
+          <HamburgerDrawer 
+            isOpen={hamburgerOpen} 
+            onClose={() => setHamburgerOpen(false)}
+            onOpenAgentDrawer={onOpenAgentDrawer}
+          />
+        </>
+      ) : (
+        <>
+          {/* Desktop Layout */}
+          <div className="logo">
+            <div className="logo-icon logo-claw">
+              <img src={clawLogo} alt="ClawController" className="logo-image" />
+            </div>
+            <div>
+              <div className="logo-title header-title">CLAWCONTROLLER</div>
+              <div className="logo-subtitle">Multi-Agent Orchestration</div>
+            </div>
+          </div>
 
       <div className="header-stats">
         <div className="stat-pill">
@@ -398,6 +537,8 @@ export default function Header() {
           {showStatus && <SystemStatusDropdown onClose={() => setShowStatus(false)} />}
         </div>
       </div>
+        </>
+      )}
     </header>
   )
 }

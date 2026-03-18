@@ -286,7 +286,7 @@ export default function StatusPage() {
             </div>
             
             {agents.length > 0 && (
-              <div className="agent-list">
+              <div className="status-agent-list">
                 {agents.map(agent => (
                   <div key={agent.id} className="agent-item">
                     <div className="agent-avatar">{agent.avatar}</div>

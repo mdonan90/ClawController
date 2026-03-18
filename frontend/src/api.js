@@ -176,7 +176,7 @@ export async function createAnnouncement(title, message, priority = 'NORMAL') {
 }
 
 // ============ Activity ============
-export async function fetchActivity(limit = 50) {
+export async function fetchActivity(limit = 100) {
   return fetchAPI(`/api/activity?limit=${limit}`)
 }
 
