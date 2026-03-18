@@ -2113,55 +2113,44 @@ curl -X PATCH http://localhost:8000/api/tasks/{task_id} \\
     session_id = f"task-{task_id[:8]}"
 
     async def run_agent_turn_async(agent_id: str, message: str, sid: str, tid: str):
-        """Run the agent turn via the gateway HTTP API in a background asyncio task.
+        """Run the agent turn as a truly non-blocking async subprocess.
         
-        Uses the OpenClaw gateway's /v1/chat/completions endpoint directly so that
-        multiple tasks can execute CONCURRENTLY (each in its own asyncio task) instead
-        of queuing sequentially behind openclaw agent CLI calls that all share the
-        same agent:dev:main session slot.
+        Uses asyncio.create_subprocess_exec (non-blocking I/O, no thread pool)
+        so that multiple tasks run FULLY in parallel — each in its own isolated
+        session slot identified by --session-id task-{task_id[:8]}.
+        
+        Key changes vs old implementation:
+          - No run_in_executor / blocking subprocess.run (was consuming thread pool)
+          - asyncio.create_subprocess_exec yields to event loop while waiting
+          - Each task gets its own session-id so sessions never share state
+          - 900s timeout enforced via asyncio.wait_for
         """
-        import urllib.request
-        import urllib.error
-
-        # Load gateway config from openclaw.json
         try:
-            config_path = Path.home() / ".openclaw" / "openclaw.json"
-            with open(config_path) as f:
-                config = json.load(f)
-            gateway_port = config.get("gateway", {}).get("port", 18789)
-            gateway_token = config.get("gateway", {}).get("auth", {}).get("token", "")
-        except Exception:
-            gateway_port = 18789
-            gateway_token = ""
+            proc = await asyncio.create_subprocess_exec(
+                "openclaw", "agent",
+                "--agent", agent_id,
+                "--session-id", sid,
+                "--message", message,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(Path.home())
+            )
+            try:
+                stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                    proc.communicate(), timeout=900
+                )
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.communicate()
+                print(f"[route] Agent {agent_id} task {tid} timed out (900s)")
+                return
 
-        gateway_url = f"http://localhost:{gateway_port}/v1/chat/completions"
-
-        body = json.dumps({
-            "model": agent_id,
-            "messages": [{"role": "user", "content": message}],
-            "stream": False,
-        }).encode("utf-8")
-
-        headers = {
-            "Content-Type": "application/json",
-        }
-        if gateway_token:
-            headers["Authorization"] = f"Bearer {gateway_token}"
-
-        try:
-            # Use asyncio executor to avoid blocking the event loop
-            loop = asyncio.get_event_loop()
-            def do_request():
-                req = urllib.request.Request(gateway_url, data=body, headers=headers)
-                try:
-                    resp = urllib.request.urlopen(req, timeout=900)
-                    return resp.read()
-                except urllib.error.HTTPError as e:
-                    return e.read()
-                except Exception as ex:
-                    return f"Error: {ex}".encode()
-            
-            await loop.run_in_executor(None, do_request)
+            rc = proc.returncode
+            stderr_text = (stderr_bytes or b"").decode("utf-8", errors="replace")
+            if rc != 0:
+                print(f"[route] Agent {agent_id} task {tid} failed (rc={rc}): {stderr_text[:500]}")
+            else:
+                print(f"[route] Agent {agent_id} task {tid} completed")
         except Exception as e:
             print(f"[route] Agent turn error for task {tid}: {e}")
 
