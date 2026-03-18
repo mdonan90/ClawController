@@ -1,5 +1,5 @@
-import { X, ChevronRight, ChevronLeft, Check, MessageSquare, User, Calendar, Paperclip, FileText, Download, Trash2, Activity } from 'lucide-react'
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { X, ChevronRight, ChevronLeft, Check, MessageSquare, User, Calendar, Paperclip, FileText, Download, Trash2, Activity, Radio } from 'lucide-react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useMissionStore, priorityColors, statusColors, statusOrder } from '../store/useMissionStore'
 import MentionText from './MentionText'
 import DatePicker from 'react-datepicker'
@@ -120,9 +120,60 @@ export default function TaskModal() {
   const [selectedReviewer, setSelectedReviewer] = useState(leadAgent?.id || 'human')
   const [newComment, setNewComment] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [activeTab, setActiveTab] = useState('activity') // 'activity' | 'live'
+  const [liveEvents, setLiveEvents] = useState([])
+  const [liveStatus, setLiveStatus] = useState('idle') // 'idle' | 'connecting' | 'connected' | 'error'
+  const liveScrollRef = useRef(null)
+  const wsRef = useRef(null)
   const fileInputRef = useRef(null)
   const commentInputRef = useRef(null)
   const [uploadingForItem, setUploadingForItem] = useState(null)
+
+  // Live stream WebSocket
+  const connectLiveStream = useCallback(() => {
+    if (wsRef.current) { wsRef.current.close(); wsRef.current = null }
+    setLiveEvents([])
+    setLiveStatus('connecting')
+    const wsUrl = `ws://${window.location.hostname}:8000/ws/tasks/${selectedTaskId}/stream`
+    const ws = new WebSocket(wsUrl)
+    wsRef.current = ws
+    ws.onopen = () => setLiveStatus('connecting')
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.type === 'connected') { setLiveStatus('connected') }
+        else if (data.type === 'error') { setLiveStatus('error') }
+        else if (data.type === 'waiting') { /* still connecting */ }
+        else {
+          setLiveEvents(prev => [...prev.slice(-200), data])
+        }
+      } catch {}
+    }
+    ws.onerror = () => setLiveStatus('error')
+    ws.onclose = () => { if (liveStatus !== 'error') setLiveStatus('idle') }
+  }, [selectedTaskId])
+
+  // Auto-scroll live events
+  useEffect(() => {
+    if (liveScrollRef.current) {
+      liveScrollRef.current.scrollTop = liveScrollRef.current.scrollHeight
+    }
+  }, [liveEvents])
+
+  // Cleanup WebSocket on unmount or tab switch
+  useEffect(() => {
+    return () => { if (wsRef.current) { wsRef.current.close(); wsRef.current = null } }
+  }, [])
+
+  // Connect when switching to live tab
+  useEffect(() => {
+    if (activeTab === 'live' && selectedTaskId) {
+      connectLiveStream()
+    } else if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
+    }
+  }, [activeTab, selectedTaskId, connectLiveStream])
   const [activityLog, setActivityLog] = useState([])
   const [activityLoading, setActivityLoading] = useState(false)
   const [previewFile, setPreviewFile] = useState(null)
@@ -630,34 +681,91 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
             </div>
           </div>
 
-          {/* Activity Log Section */}
+          {/* Activity / Live Tabs */}
           <div className="modal-section">
-            <h3>
-              <Activity size={16} />
-              Activity Log
-            </h3>
-            <div className="activity-log">
-              {activityLoading ? (
-                <div className="activity-loading">Loading activity...</div>
-              ) : activityLog.length === 0 ? (
-                <div className="activity-empty">No activity recorded yet</div>
-              ) : (
-                activityLog.map((entry) => (
-                  <div key={entry.id} className="activity-entry">
-                    <div className="activity-avatar">
-                      {entry.agent?.avatar || '🤖'}
-                    </div>
-                    <div className="activity-content">
-                      <span className="activity-agent">{entry.agent?.name || 'Unknown'}</span>
-                      <span className="activity-message">{entry.message}</span>
-                    </div>
-                    <div className="activity-time">
-                      {format(new Date(entry.timestamp?.endsWith('Z') ? entry.timestamp : entry.timestamp + 'Z'), 'MMM d, h:mm a')}
-                    </div>
-                  </div>
-                ))
-              )}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              <button
+                onClick={() => setActiveTab('activity')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px',
+                  borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500,
+                  background: activeTab === 'activity' ? 'var(--accent)' : 'var(--surface-2, #2a2a3a)',
+                  color: activeTab === 'activity' ? '#fff' : 'var(--text-secondary)',
+                }}
+              >
+                <Activity size={14} /> Activity Log
+              </button>
+              <button
+                onClick={() => setActiveTab('live')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px',
+                  borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500,
+                  background: activeTab === 'live' ? '#ef4444' : 'var(--surface-2, #2a2a3a)',
+                  color: activeTab === 'live' ? '#fff' : 'var(--text-secondary)',
+                }}
+              >
+                <Radio size={14} /> Live
+                {liveStatus === 'connected' && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', marginLeft: 4 }} />}
+              </button>
             </div>
+
+            {activeTab === 'activity' && (
+              <div className="activity-log">
+                {activityLoading ? (
+                  <div className="activity-loading">Loading activity...</div>
+                ) : activityLog.length === 0 ? (
+                  <div className="activity-empty">No activity recorded yet</div>
+                ) : (
+                  activityLog.map((entry) => (
+                    <div key={entry.id} className="activity-entry">
+                      <div className="activity-avatar">
+                        {entry.agent?.avatar || '🤖'}
+                      </div>
+                      <div className="activity-content">
+                        <span className="activity-agent">{entry.agent?.name || 'Unknown'}</span>
+                        <span className="activity-message">{entry.message}</span>
+                      </div>
+                      <div className="activity-time">
+                        {format(new Date(entry.timestamp?.endsWith('Z') ? entry.timestamp : entry.timestamp + 'Z'), 'MMM d, h:mm a')}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {activeTab === 'live' && (
+              <div style={{ background: '#0d1117', borderRadius: '8px', padding: '12px', maxHeight: '400px', overflow: 'auto', fontFamily: 'monospace', fontSize: '12px' }} ref={liveScrollRef}>
+                {liveStatus === 'connecting' && <div style={{ color: '#f59e0b' }}>⏳ Connecting to agent session...</div>}
+                {liveStatus === 'error' && <div style={{ color: '#ef4444' }}>❌ Could not connect to session. <button onClick={connectLiveStream} style={{ color: '#60a5fa', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Retry</button></div>}
+                {liveStatus === 'idle' && liveEvents.length === 0 && <div style={{ color: '#6b7280' }}>Click to connect to agent&apos;s live session</div>}
+                {liveEvents.map((evt, i) => (
+                  <div key={i} style={{ marginBottom: '4px', opacity: evt.backfill ? 0.5 : 1 }}>
+                    {evt.type === 'text' && (
+                      <div style={{ color: evt.role === 'assistant' ? '#a78bfa' : '#9ca3af' }}>
+                        <span style={{ color: '#6b7280', marginRight: 6 }}>{evt.role === 'assistant' ? '🤖' : '📥'}</span>
+                        {evt.content?.substring(0, 500)}
+                      </div>
+                    )}
+                    {evt.type === 'thinking' && (
+                      <div style={{ color: '#6b7280', fontStyle: 'italic' }}>
+                        💭 {evt.content?.substring(0, 200)}
+                      </div>
+                    )}
+                    {evt.type === 'tool' && (
+                      <div style={{ color: '#22d3ee' }}>
+                        🔧 <strong>{evt.name}</strong> → {evt.detail}
+                      </div>
+                    )}
+                    {evt.type === 'result' && (
+                      <div style={{ color: '#4ade80', paddingLeft: 20 }}>
+                        ↪ {evt.content?.substring(0, 300)}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           
           {/* Delete Confirmation */}

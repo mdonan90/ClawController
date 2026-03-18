@@ -445,6 +445,165 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
+
+def parse_transcript_line(line: str):
+    """Parse a JSONL transcript line into display events."""
+    try:
+        obj = json.loads(line)
+        msg = obj.get("message", obj)
+        role = msg.get("role", "")
+        content = msg.get("content", [])
+        ts = obj.get("timestamp", "")
+
+        if not isinstance(content, list):
+            return None
+
+        events = []
+        for item in content:
+            if not isinstance(item, dict):
+                continue
+            t = item.get("type", "")
+            if t == "text":
+                text = item.get("text", "").strip()
+                if text:
+                    events.append({"type": "text", "role": role, "content": text, "ts": ts})
+            elif t == "thinking":
+                think = item.get("thinking", "").strip()
+                if think:
+                    events.append({"type": "thinking", "content": think[:300], "ts": ts})
+            elif t in ("toolUse", "tool_use", "toolCall"):
+                name = item.get("name", "")
+                args = item.get("input") or item.get("arguments") or {}
+                if isinstance(args, dict):
+                    if name in ("exec", "Bash", "bash"):
+                        detail = args.get("command", str(args))[:200]
+                    elif name in ("Read", "Write", "Edit", "read", "write", "edit"):
+                        detail = args.get("file_path") or args.get("path", str(args)[:100])
+                    elif name == "web_search":
+                        detail = args.get("query", "")
+                    elif name == "web_fetch":
+                        detail = args.get("url", "")
+                    else:
+                        detail = str(args)[:150]
+                else:
+                    detail = str(args)[:150]
+                events.append({"type": "tool", "name": name, "detail": detail, "ts": ts})
+            elif t == "toolResult":
+                result_content = item.get("content", [])
+                if isinstance(result_content, list):
+                    for rc in result_content:
+                        if isinstance(rc, dict) and rc.get("type") == "text":
+                            events.append({"type": "result", "content": rc.get("text", "")[:300], "ts": ts})
+                            break
+                elif isinstance(result_content, str):
+                    events.append({"type": "result", "content": result_content[:300], "ts": ts})
+        return events if events else None
+    except Exception:
+        return None
+
+
+@app.websocket("/ws/tasks/{task_id}/stream")
+async def stream_task_session(websocket: WebSocket, task_id: str, db: Session = Depends(get_db)):
+    """Stream live agent activity for a task from its session transcript."""
+    await websocket.accept()
+
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        await websocket.send_json({"type": "error", "message": "Task not found"})
+        await websocket.close()
+        return
+
+    agent_id = task.assignee_id or "dev"
+    short_id = task_id[:8]
+    task_session_id = f"task-{short_id}"
+    home = Path.home()
+    sessions_dir = home / ".openclaw" / "agents" / agent_id / "sessions"
+    sessions_json = sessions_dir / "sessions.json"
+
+    def find_transcript():
+        if hasattr(task, 'session_file') and task.session_file:
+            candidate = Path(task.session_file)
+            if candidate.exists():
+                return candidate
+        try:
+            if sessions_json.exists():
+                with open(sessions_json) as f:
+                    sessions_data = json.load(f)
+                for key, sdata in sessions_data.items():
+                    sid = sdata.get("sessionId", "")
+                    if sid == task_session_id:
+                        sf = sdata.get("sessionFile")
+                        if sf:
+                            candidate = Path(sf)
+                            if candidate.exists():
+                                return candidate
+                        candidate = sessions_dir / f"{sid}.jsonl"
+                        if candidate.exists():
+                            return candidate
+                    if key == f"agent:{agent_id}:task-{short_id}":
+                        sid2 = sdata.get("sessionId")
+                        if sid2:
+                            candidate = sessions_dir / f"{sid2}.jsonl"
+                            if candidate.exists():
+                                return candidate
+        except Exception:
+            pass
+        direct = sessions_dir / f"{task_session_id}.jsonl"
+        if direct.exists():
+            return direct
+        return None
+
+    transcript_path = find_transcript()
+
+    if not transcript_path:
+        for attempt in range(60):
+            await websocket.send_json({"type": "waiting", "message": f"Waiting for agent session to start... ({attempt + 1})"})
+            await asyncio.sleep(0.5)
+            db.refresh(task)
+            transcript_path = find_transcript()
+            if transcript_path:
+                break
+
+    if not transcript_path:
+        await websocket.send_json({"type": "error", "message": f"Agent session not found for task {short_id}."})
+        await websocket.close()
+        return
+
+    await websocket.send_json({"type": "connected", "message": f"Streaming {agent_id} session..."})
+
+    try:
+        with open(transcript_path, "r", errors="replace") as f:
+            all_lines = f.readlines()
+            backfill_lines = all_lines[-60:] if len(all_lines) > 60 else all_lines
+            for line in backfill_lines:
+                events = parse_transcript_line(line.strip())
+                if events:
+                    for event in events:
+                        event["backfill"] = True
+                        await websocket.send_json(event)
+            f.seek(0, 2)
+            while True:
+                line = f.readline()
+                if line:
+                    events = parse_transcript_line(line.strip())
+                    if events:
+                        for event in events:
+                            await websocket.send_json(event)
+                else:
+                    await asyncio.sleep(0.2)
+                try:
+                    await asyncio.wait_for(websocket.receive_text(), timeout=0.01)
+                except asyncio.TimeoutError:
+                    pass
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        try:
+            await websocket.send_json({"type": "error", "message": str(e)})
+        except Exception:
+            pass
+
+
 # Agent endpoints
 @app.get("/api/agents", response_model=List[AgentResponse])
 def get_agents(db: Session = Depends(get_db)):
