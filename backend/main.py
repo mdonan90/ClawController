@@ -1755,87 +1755,198 @@ class RouteTaskRequest(BaseModel):
 
 @app.post("/api/tasks/{task_id}/route")
 async def route_task_to_agent(task_id: str, request: RouteTaskRequest = None, db: Session = Depends(get_db)):
-    """Route a task to its assigned agent with a fresh context.
-    
-    Uses sessions_spawn to create an isolated session per task.
-    This ensures:
-    - Fresh context window (no bleed from previous tasks)
-    - Task-specific session label for tracking
-    - Auto-cleanup when task completes
+    """Route a task to its assigned agent with a truly independent parallel session.
+
+    Uses the OpenClaw gateway `chat.send` RPC with an explicit per-task sessionKey
+    of the form ``agent:{agent_id}:task-{task_id}``.
+
+    Why this achieves true parallelism:
+    - ``openclaw agent --agent dev`` always routes to ``agent:dev:main``, so all tasks
+      queue behind each other on that single session slot.
+    - By providing a unique sessionKey per task, each task runs on its own gateway
+      session slot independently — no queueing.
+    - ``chat.send`` returns immediately (status="started") — the route endpoint is
+      non-blocking and returns in <1s regardless of task duration.
+    - The gateway enforces concurrency via ``agents.defaults.maxConcurrent`` (currently 4),
+      which applies per-lane, not per unique session key, so multiple task sessions
+      run truly in parallel.
     """
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     if not task.assignee_id:
         raise HTTPException(status_code=400, detail="Task has no assignee")
-    
+
     # Build the task message
+    short_id = task_id[:8]
+
+    # Detect repo from task tags
+    tags = []
+    try:
+        tags = json.loads(task.tags or "[]")
+    except Exception:
+        pass
+    tag_set = set(t.lower() for t in tags)
+    if "arctiqone" in tag_set or "arctiscope" in tag_set or "verinext" in tag_set:
+        repo = "Verinext/arctiq-one"
+    elif "clawcontroller" in tag_set:
+        repo = "mdonan90/ClawController"
+    elif "sentimentguardian" in tag_set or "sg" in tag_set:
+        repo = "mdonan90/SentimentGuardian"
+    elif "safeharbor" in tag_set:
+        repo = "mdonan90/safeharbor"
+    else:
+        repo = "$(git remote get-url origin | sed 's/.*github.com\\///' | sed 's/\\.git//')"
+
     task_message = f"""Task: {task.title}
 
 **Task ID:** {task_id}
+**Repo:** {repo}
 
 **Description:**
 {task.description or 'No description provided.'}
 
 **Priority:** {task.priority.value if task.priority else 'NORMAL'}
 
-**When complete, report back:**
+## REQUIRED: Branch → PR → Report (never push direct to main)
+
 ```bash
+# 1. Branch
+cd <repo-dir> && git checkout main && git pull
+git checkout -b feat/{short_id}-<short-description>
+
+# 2. Do work, commit atomically
+git add -A && git commit -m "feat(<scope>): <what you did>"
+
+# 3. Push + open PR
+git push -u origin feat/{short_id}-<short-description>
+GH_TOKEN=${GH_TOKEN} gh pr create \\
+  --repo {repo} \\
+  --title "<title>" \\
+  --body "Closes #<issue_number>\\n\\n<summary>" \\
+  --base main
+
+# 4. Report back with PR URL (REQUIRED before setting REVIEW)
 curl -X POST http://localhost:8000/api/tasks/{task_id}/activity \\
   -H "Content-Type: application/json" \\
-  -d '{{"agent_id": "{task.assignee_id}", "message": "YOUR_UPDATE"}}'
+  -d '{{"agent_id": "{task.assignee_id}", "message": "completed — PR: <PR_URL> | commit: <HASH>"}}'
 
+# 5. Set to REVIEW
 curl -X PATCH http://localhost:8000/api/tasks/{task_id} \\
   -H "Content-Type: application/json" \\
   -d '{{"status": "REVIEW"}}'
-```"""
-    
+```
+
+**Do NOT merge your own PR. Submit it and ClawController will auto-merge on approval.**"""
+
     if request and request.message:
         task_message = request.message
-    
-    # Log the routing
-    activity = TaskActivity(
-        task_id=task_id,
-        agent_id="system",
-        message=f"🚀 Routing to agent {task.assignee_id} with fresh context"
-    )
-    db.add(activity)
-    db.commit()
-    
-    # Spawn isolated session for this task
+
+    # Log the routing — skip if the last entry already says "Routing" (deduplicate)
+    last_activity = db.query(TaskActivity).filter(
+        TaskActivity.task_id == task_id
+    ).order_by(TaskActivity.timestamp.desc()).first()
+
+    if not (last_activity and "Routing" in (last_activity.message or "")):
+        activity = TaskActivity(
+            task_id=task_id,
+            agent_id="system",
+            message=f"🚀 Routing to agent {task.assignee_id} with fresh context"
+        )
+        db.add(activity)
+        db.commit()
+
+    # === TRUE PARALLEL EXECUTION via gateway chat.send ===
+    #
+    # Each task gets a unique session key: agent:{agent_id}:task-{task_id}
+    # This bypasses the agent:dev:main queue entirely.
+    # chat.send is non-blocking — returns "started" immediately.
+    session_key = f"agent:{task.assignee_id}:task-{task_id}"
+    # Idempotency key prevents double-dispatch if route is called twice
+    idempotency_key = f"route-{task_id}"
+
     try:
+        params_json = json.dumps({
+            "sessionKey": session_key,
+            "message": task_message,
+            "idempotencyKey": idempotency_key
+        })
+
         result = subprocess.run(
-            [
-                "openclaw", "sessions", "spawn",
-                "--agent", task.assignee_id,
-                "--label", f"task-{task_id[:8]}",
-                "--message", task_message
-            ],
+            ["openclaw", "gateway", "call", "chat.send",
+             "--params", params_json],
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=15,
+            cwd=str(Path.home())
         )
-        
+
         if result.returncode != 0:
-            # Fallback to direct agent command
-            result = subprocess.run(
-                ["openclaw", "agent", "--agent", task.assignee_id, "--message", task_message],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-        
+            stderr_msg = result.stderr.strip()
+            # Idempotency hit is not an error
+            if "already" in stderr_msg.lower() or "idempotent" in stderr_msg.lower():
+                print(f"[route] Task {task_id} already routed (idempotency hit)")
+            else:
+                raise Exception(f"gateway chat.send failed: {stderr_msg[:300]}")
+
+        # Parse run_id from gateway response
+        run_id = None
+        try:
+            # stdout has a header line "Gateway call: chat.send\n" then JSON
+            lines = result.stdout.strip().splitlines()
+            json_line = next((l for l in lines if l.startswith("{")), None)
+            if json_line:
+                resp = json.loads(json_line)
+                run_id = resp.get("runId")
+        except Exception:
+            pass
+
+        # Background task: once the gateway creates the session JSONL file,
+        # persist its path on the task so the live stream endpoint can find it.
+        async def persist_session_file_by_key(agent_id: str, skey: str, tid: str):
+            sessions_dir = Path.home() / ".openclaw" / "agents" / agent_id / "sessions"
+            sessions_json_path = sessions_dir / "sessions.json"
+            for _ in range(120):  # poll up to 60s
+                await asyncio.sleep(0.5)
+                try:
+                    if sessions_json_path.exists():
+                        with open(sessions_json_path) as f:
+                            sdata = json.load(f)
+                        entry = sdata.get(skey)
+                        if entry:
+                            sf = entry.get("sessionFile")
+                            if sf and Path(sf).exists():
+                                db2 = SessionLocal()
+                                try:
+                                    t2 = db2.query(Task).filter(Task.id == tid).first()
+                                    if t2 and t2.session_file != sf:
+                                        t2.session_file = sf
+                                        db2.commit()
+                                        print(f"[route] Stored session_file for task {tid}: {sf}")
+                                finally:
+                                    db2.close()
+                                return
+                except Exception as pe:
+                    print(f"[route] persist_session_file error: {pe}")
+
+        asyncio.create_task(persist_session_file_by_key(task.assignee_id, session_key, task_id))
+
+        # Mark task IN_PROGRESS
+        task.status = TaskStatus.IN_PROGRESS
+        db.commit()
+
         return {
             "ok": True,
             "task_id": task_id,
             "agent_id": task.assignee_id,
-            "session_label": f"task-{task_id[:8]}",
-            "message": "Task routed with fresh context"
+            "session_key": session_key,
+            "run_id": run_id,
+            "message": "Task routed — agent is working (independent parallel session)"
         }
-        
+
     except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=504, detail="Agent spawn timed out")
+        raise HTTPException(status_code=500, detail="Gateway call timed out (15s). Is the OpenClaw gateway running?")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to route task: {str(e)}")
 
