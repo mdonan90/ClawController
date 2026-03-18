@@ -352,11 +352,16 @@ Do NOT approve without logging your review findings first."""
 
 # Helper to notify agent when their task is rejected
 def notify_task_rejected(task, feedback: str = None, rejected_by: str = None):
-    """Notify agent when their task is rejected and sent back."""
+    """Notify agent when their task is rejected and sent back.
+
+    Routes to the task-specific session (task-{short_id}) so the rejection
+    lands in the same isolated session the dev agent is working in.
+    """
     if not task.assignee_id:
         return
     
     reviewer_name = rejected_by or "Reviewer"
+    session_id = f"task-{task.id[:8]}"
     
     message = f"""🔄 Task sent back for changes: {task.title}
 
@@ -373,23 +378,31 @@ View in ClawController: http://localhost:5001"""
 
     try:
         subprocess.Popen(
-            ["openclaw", "agent", "--agent", task.assignee_id, "--message", message],
+            ["openclaw", "agent", "--agent", task.assignee_id,
+             "--session-id", session_id, "--message", message],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             cwd=str(Path.home())
         )
-        print(f"Notified agent {task.assignee_id} of task rejection: {task.title}")
+        print(f"Notified agent {task.assignee_id} of task rejection (session={session_id}): {task.title}")
     except Exception as e:
         print(f"Failed to notify agent {task.assignee_id} of rejection: {e}")
 
 # Helper to notify agent when task is assigned
 def notify_agent_of_task(task):
-    """Notify agent via OpenClaw when a task is assigned to them."""
+    """Notify agent via OpenClaw when a task is assigned to them.
+
+    Uses --session-id task-{short_id} so every task gets its own isolated
+    session slot — tasks never queue behind each other on the main session.
+    """
     if not task.assignee_id:
         return
     # Only notify for freshly ASSIGNED tasks — don't re-notify if already running or further along
     if task.status != TaskStatus.ASSIGNED:
         return
+
+    short_id = task.id[:8]
+    session_id = f"task-{short_id}"
     
     description_preview = (task.description[:500] + '...') if task.description and len(task.description) > 500 else (task.description or 'No description')
     
@@ -408,12 +421,13 @@ Post an activity with 'completed' or 'done' in the message - the system will aut
 
     try:
         subprocess.Popen(
-            ["openclaw", "agent", "--agent", task.assignee_id, "--message", message],
+            ["openclaw", "agent", "--agent", task.assignee_id,
+             "--session-id", session_id, "--message", message],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             cwd=str(Path.home())
         )
-        print(f"Notified agent {task.assignee_id} of task: {task.title}")
+        print(f"Notified agent {task.assignee_id} of task {task.id} (session={session_id}): {task.title}")
     except Exception as e:
         print(f"Failed to notify agent {task.assignee_id}: {e}")
 
@@ -581,14 +595,12 @@ async def stream_task_session(websocket: WebSocket, task_id: str, db: Session = 
         return
 
     agent_id = task.assignee_id or "dev"
-    short_id = task_id[:8]
-    # The route endpoint uses --session-id task-{short_id}, which OpenClaw stores
-    # under key "agent:{agent_id}:main" with sessionId = "task-{short_id}"
-    task_session_id = f"task-{short_id}"
+    # Session key format used by the route endpoint: agent:{agent_id}:task-{task_id}
+    task_session_key = f"agent:{agent_id}:task-{task_id}"
     home = Path.home()
     sessions_json = home / ".openclaw" / "agents" / agent_id / "sessions" / "sessions.json"
 
-    # Find transcript: try task-specific session first, NO global fallback (prevents cross-task bleed)
+    # Find transcript: look up by exact session key first, then stored session_file
     transcript_path = None
     sessions_dir = home / ".openclaw" / "agents" / agent_id / "sessions"
 
@@ -599,43 +611,45 @@ async def stream_task_session(websocket: WebSocket, task_id: str, db: Session = 
             if candidate.exists():
                 return candidate
 
-        # 1. Scan ALL entries in sessions.json for sessionId matching "task-{short_id}"
-        #    This handles: "agent:{agent_id}:main" key with sessionId="task-{short_id}"
-        #    as well as any task-keyed entry.
+        # 1. Look up the exact session key in sessions.json
+        #    The route endpoint creates "agent:{agent_id}:task-{task_id}" as the session key.
+        #    Each entry has a sessionId (UUID) and sessionFile pointing to the JSONL transcript.
         try:
             if sessions_json.exists():
                 with open(sessions_json) as f:
                     sessions_data = json.load(f)
+
+                # Primary: exact session key match
+                entry = sessions_data.get(task_session_key)
+                if entry:
+                    sf = entry.get("sessionFile")
+                    if sf:
+                        candidate = Path(sf)
+                        if candidate.exists():
+                            return candidate
+                    # Fall back to UUID JSONL
+                    uuid = entry.get("sessionId")
+                    if uuid:
+                        candidate = sessions_dir / f"{uuid}.jsonl"
+                        if candidate.exists():
+                            return candidate
+
+                # Legacy fallback: partial key match (short task_id prefix)
+                short_id = task_id[:8]
                 for key, sdata in sessions_data.items():
-                    sid = sdata.get("sessionId", "")
-                    # Match sessionId = "task-{short_id}" (set by --session-id flag)
-                    if sid == task_session_id:
+                    if f"task-{short_id}" in key and key.startswith(f"agent:{agent_id}:"):
                         sf = sdata.get("sessionFile")
                         if sf:
                             candidate = Path(sf)
                             if candidate.exists():
                                 return candidate
-                        candidate = sessions_dir / f"{sid}.jsonl"
-                        if candidate.exists():
-                            return candidate
-                        # sessionId may be a UUID; look for a .jsonl by UUID
-                        uuid_file = sessions_dir / f"{sdata.get('sessionId', '')}.jsonl"
-                        if uuid_file.exists():
-                            return uuid_file
-                    # Also match keys like "agent:{agent_id}:task-{short_id}"
-                    if key == f"agent:{agent_id}:task-{short_id}":
-                        sid2 = sdata.get("sessionId")
-                        if sid2:
-                            candidate = sessions_dir / f"{sid2}.jsonl"
+                        uuid = sdata.get("sessionId")
+                        if uuid:
+                            candidate = sessions_dir / f"{uuid}.jsonl"
                             if candidate.exists():
                                 return candidate
         except Exception:
             pass
-
-        # 2. Look for a JSONL file named exactly task-{short_id}.jsonl
-        direct = sessions_dir / f"{task_session_id}.jsonl"
-        if direct.exists():
-            return direct
 
         # NOTE: No fallback to "most recently modified file" — that causes cross-task bleed.
         return None
@@ -1446,7 +1460,12 @@ def get_agent_id_by_name(name: str, db: Session) -> str | None:
     return None
 
 async def route_mention_to_agent(agent_id: str, task: Task, comment_content: str, commenter_name: str):
-    """Send a message to an agent when @mentioned in a task comment."""
+    """Send a message to an agent when @mentioned in a task comment.
+
+    Routes to the task-specific session (task-{short_id}) if the mentioned
+    agent is the task assignee, so the mention lands in the right context.
+    Falls back to the agent's main session for non-assignee mentions.
+    """
     # Build context message for the agent
     message = f"""You were mentioned in a task comment.
 
@@ -1462,14 +1481,16 @@ Please review and respond appropriately. You can reply by adding a comment to th
 curl -X POST http://localhost:8000/api/tasks/{task.id}/comments -H "Content-Type: application/json" -d '{{"agent_id": "{agent_id}", "content": "Your response here"}}'
 ```"""
 
+    # Use the task-specific session if the mentioned agent is the assignee
+    cmd = ["openclaw", "agent", "--agent", agent_id]
+    if task.assignee_id == agent_id:
+        session_id = f"task-{task.id[:8]}"
+        cmd += ["--session-id", session_id]
+    cmd += ["--message", message]
+
     try:
-        # Use subprocess to call OpenClaw CLI
         subprocess.Popen(
-            [
-                "openclaw", "agent",
-                "--agent", agent_id,
-                "--message", message
-            ],
+            cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             cwd=str(Path.home())
@@ -2038,13 +2059,17 @@ class RouteTaskRequest(BaseModel):
 
 @app.post("/api/tasks/{task_id}/route")
 async def route_task_to_agent(task_id: str, request: RouteTaskRequest = None, db: Session = Depends(get_db)):
-    """Route a task to its assigned agent with a fresh context.
+    """Route a task to its assigned agent with a truly independent parallel session.
     
-    Uses sessions_spawn to create an isolated session per task.
-    This ensures:
-    - Fresh context window (no bleed from previous tasks)
-    - Task-specific session label for tracking
-    - Auto-cleanup when task completes
+    Uses the OpenClaw gateway chat.send RPC with an explicit per-task sessionKey
+    (agent:{agent_id}:task-{task_id}) to create an isolated session slot.
+    
+    This ensures TRUE parallel execution because:
+    - Each task maps to a DIFFERENT gateway session key (not agent:dev:main)
+    - chat.send returns immediately ("started") — non-blocking fire-and-forget
+    - No subprocess threads consumed in the ClawController process
+    - The gateway handles concurrency (maxConcurrent controls simultaneous runs)
+    - Session file tracked per-task for live stream support
     """
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
@@ -2131,92 +2156,85 @@ curl -X PATCH http://localhost:8000/api/tasks/{task_id} \\
         )
         db.add(activity)
         db.commit()
-    
-    # Each task gets a unique session_id for tracking
-    session_id = f"task-{task_id[:8]}"
 
-    async def run_agent_turn_async(agent_id: str, message: str, sid: str, tid: str):
-        """Run the agent turn as a truly non-blocking async subprocess.
-        
-        Uses asyncio.create_subprocess_exec (non-blocking I/O, no thread pool)
-        so that multiple tasks run FULLY in parallel — each in its own isolated
-        session slot identified by --session-id task-{task_id[:8]}.
-        
-        Key changes vs old implementation:
-          - No run_in_executor / blocking subprocess.run (was consuming thread pool)
-          - asyncio.create_subprocess_exec yields to event loop while waiting
-          - Each task gets its own session-id so sessions never share state
-          - 900s timeout enforced via asyncio.wait_for
-          - After starting, we poll sessions.json to persist session_file on the task
-        """
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                "openclaw", "agent",
-                "--agent", agent_id,
-                "--session-id", sid,
-                "--message", message,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=str(Path.home())
-            )
+    # === TRUE PARALLEL EXECUTION via gateway chat.send ===
+    #
+    # The key insight: openclaw agent --agent dev always routes to session key
+    # "agent:dev:main", which queues all tasks sequentially on that one slot.
+    #
+    # By using `openclaw gateway call chat.send` with an EXPLICIT sessionKey
+    # of the form "agent:{agent_id}:task-{task_id}", each task gets its own
+    # isolated session slot → truly parallel execution.
+    #
+    # chat.send returns immediately with {"status": "started"} so it's
+    # non-blocking — no subprocess threads held in ClawController.
 
-            # After a brief startup delay, scan sessions.json and store the session file
-            # path on the task so the stream endpoint can find it without guessing.
-            async def persist_session_file():
-                sessions_dir = Path.home() / ".openclaw" / "agents" / agent_id / "sessions"
-                sessions_json_path = sessions_dir / "sessions.json"
-                for _ in range(20):  # poll up to 10s
-                    await asyncio.sleep(0.5)
-                    try:
-                        if sessions_json_path.exists():
-                            with open(sessions_json_path) as f:
-                                sdata = json.load(f)
-                            for _key, entry in sdata.items():
-                                if entry.get("sessionId") == sid:
-                                    sf = entry.get("sessionFile")
-                                    if sf and Path(sf).exists():
-                                        # Persist to DB
-                                        db2 = SessionLocal()
-                                        try:
-                                            t2 = db2.query(Task).filter(Task.id == tid).first()
-                                            if t2 and t2.session_file != sf:
-                                                t2.session_file = sf
-                                                db2.commit()
-                                                print(f"[route] Stored session_file for task {tid}: {sf}")
-                                        finally:
-                                            db2.close()
-                                        return
-                    except Exception as pe:
-                        print(f"[route] persist_session_file error: {pe}")
-
-            asyncio.create_task(persist_session_file())
-
-            try:
-                stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                    proc.communicate(), timeout=900
-                )
-            except asyncio.TimeoutError:
-                proc.kill()
-                await proc.communicate()
-                print(f"[route] Agent {agent_id} task {tid} timed out (900s)")
-                return
-
-            rc = proc.returncode
-            stderr_text = (stderr_bytes or b"").decode("utf-8", errors="replace")
-            if rc != 0:
-                print(f"[route] Agent {agent_id} task {tid} failed (rc={rc}): {stderr_text[:500]}")
-            else:
-                print(f"[route] Agent {agent_id} task {tid} completed")
-        except Exception as e:
-            print(f"[route] Agent turn error for task {tid}: {e}")
+    # Unique session key per task — full task_id prevents collisions
+    session_key = f"agent:{task.assignee_id}:task-{task_id}"
+    # Idempotency key: prevents double-dispatch if route is called twice for the same task
+    idempotency_key = f"route-{task_id}"
 
     try:
-        # Fire-and-forget: spawn the agent turn as a background asyncio task.
-        # Each task gets its own independent asyncio task → they run in parallel,
-        # not queued on a single session slot like `openclaw agent --agent dev` does.
-        asyncio.create_task(
-            run_agent_turn_async(task.assignee_id, task_message, session_id, task_id)
+        params_json = json.dumps({
+            "sessionKey": session_key,
+            "message": task_message,
+            "idempotencyKey": idempotency_key
+        })
+
+        result = subprocess.run(
+            ["openclaw", "gateway", "call", "chat.send",
+             "--params", params_json],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            cwd=str(Path.home())
         )
+
+        if result.returncode != 0:
+            stderr_msg = result.stderr.strip()
+            # If "already started" / idempotency hit, that's OK
+            if "already" in stderr_msg.lower() or "idempotent" in stderr_msg.lower():
+                print(f"[route] Task {task_id} already routed (idempotency hit)")
+            else:
+                raise Exception(f"gateway call failed: {stderr_msg[:300]}")
+
+        # Parse run ID from response for tracking
+        run_id = None
+        try:
+            resp = json.loads(result.stdout.strip().split("\n", 1)[-1])  # skip "Gateway call: ..." prefix line
+            run_id = resp.get("runId")
+        except Exception:
+            pass
+
+        # Schedule a background task to persist the session file path once the
+        # gateway creates it. This powers the live stream endpoint.
+        async def persist_session_file_by_key(agent_id: str, skey: str, tid: str):
+            sessions_dir = Path.home() / ".openclaw" / "agents" / agent_id / "sessions"
+            sessions_json_path = sessions_dir / "sessions.json"
+            for _ in range(60):  # poll up to 30s (0.5s intervals)
+                await asyncio.sleep(0.5)
+                try:
+                    if sessions_json_path.exists():
+                        with open(sessions_json_path) as f:
+                            sdata = json.load(f)
+                        entry = sdata.get(skey)
+                        if entry:
+                            sf = entry.get("sessionFile")
+                            if sf and Path(sf).exists():
+                                db2 = SessionLocal()
+                                try:
+                                    t2 = db2.query(Task).filter(Task.id == tid).first()
+                                    if t2 and t2.session_file != sf:
+                                        t2.session_file = sf
+                                        db2.commit()
+                                        print(f"[route] Stored session_file for task {tid}: {sf}")
+                                finally:
+                                    db2.close()
+                                return
+                except Exception as pe:
+                    print(f"[route] persist_session_file error: {pe}")
+
+        asyncio.create_task(persist_session_file_by_key(task.assignee_id, session_key, task_id))
 
         # Update task status to IN_PROGRESS
         task.status = TaskStatus.IN_PROGRESS
@@ -2226,10 +2244,13 @@ curl -X PATCH http://localhost:8000/api/tasks/{task_id} \\
             "ok": True,
             "task_id": task_id,
             "agent_id": task.assignee_id,
-            "session_id": session_id,
-            "message": "Task routed — agent is working (parallel session)"
+            "session_key": session_key,
+            "run_id": run_id,
+            "message": "Task routed — agent is working (independent parallel session)"
         }
 
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=500, detail="Gateway call timed out (15s). Is the OpenClaw gateway running?")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to route task: {str(e)}")
 
