@@ -581,61 +581,84 @@ async def stream_task_session(websocket: WebSocket, task_id: str, db: Session = 
         return
 
     agent_id = task.assignee_id or "dev"
-    session_key = f"agent:{agent_id}:task-{task_id[:8]}"
+    short_id = task_id[:8]
+    # The route endpoint uses --session-id task-{short_id}, which OpenClaw stores
+    # under key "agent:{agent_id}:main" with sessionId = "task-{short_id}"
+    task_session_id = f"task-{short_id}"
     home = Path.home()
     sessions_json = home / ".openclaw" / "agents" / agent_id / "sessions" / "sessions.json"
 
-    # Find transcript: try task-specific session first, fall back to most recently modified file
+    # Find transcript: try task-specific session first, NO global fallback (prevents cross-task bleed)
     transcript_path = None
     sessions_dir = home / ".openclaw" / "agents" / agent_id / "sessions"
 
     def find_transcript():
-        # 0. Use stored session_file path on the task (most reliable)
+        # 0. Use stored session_file path on the task (most reliable — set by route endpoint)
         if task.session_file:
             candidate = Path(task.session_file)
             if candidate.exists():
                 return candidate
 
-        # 1. Try task-specific session key in the assignee's session dir
+        # 1. Scan ALL entries in sessions.json for sessionId matching "task-{short_id}"
+        #    This handles: "agent:{agent_id}:main" key with sessionId="task-{short_id}"
+        #    as well as any task-keyed entry.
         try:
             if sessions_json.exists():
                 with open(sessions_json) as f:
-                    sessions = json.load(f)
-                session_data = sessions.get(session_key)
-                if session_data and session_data.get("sessionId"):
-                    uuid = session_data["sessionId"]
-                    candidate = sessions_dir / f"{uuid}.jsonl"
-                    if candidate.exists():
-                        return candidate
+                    sessions_data = json.load(f)
+                for key, sdata in sessions_data.items():
+                    sid = sdata.get("sessionId", "")
+                    # Match sessionId = "task-{short_id}" (set by --session-id flag)
+                    if sid == task_session_id:
+                        sf = sdata.get("sessionFile")
+                        if sf:
+                            candidate = Path(sf)
+                            if candidate.exists():
+                                return candidate
+                        candidate = sessions_dir / f"{sid}.jsonl"
+                        if candidate.exists():
+                            return candidate
+                        # sessionId may be a UUID; look for a .jsonl by UUID
+                        uuid_file = sessions_dir / f"{sdata.get('sessionId', '')}.jsonl"
+                        if uuid_file.exists():
+                            return uuid_file
+                    # Also match keys like "agent:{agent_id}:task-{short_id}"
+                    if key == f"agent:{agent_id}:task-{short_id}":
+                        sid2 = sdata.get("sessionId")
+                        if sid2:
+                            candidate = sessions_dir / f"{sid2}.jsonl"
+                            if candidate.exists():
+                                return candidate
         except Exception:
             pass
 
-        # 2. Fall back to most recently modified file in assignee's session dir only
-        try:
-            files = list(sessions_dir.glob("*.jsonl"))
-            if files:
-                return max(files, key=lambda f: f.stat().st_mtime)
-        except Exception:
-            pass
+        # 2. Look for a JSONL file named exactly task-{short_id}.jsonl
+        direct = sessions_dir / f"{task_session_id}.jsonl"
+        if direct.exists():
+            return direct
+
+        # NOTE: No fallback to "most recently modified file" — that causes cross-task bleed.
         return None
 
     transcript_path = find_transcript()
 
-    # If still not found, wait briefly for it
+    # If still not found, wait up to 30s for the task session to start
     if not transcript_path:
-        for _ in range(10):
-            await websocket.send_json({"type": "waiting", "message": "Waiting for agent session to start..."})
+        for attempt in range(60):  # 60 × 0.5s = 30s
+            await websocket.send_json({"type": "waiting", "message": f"Waiting for agent session to start... ({attempt + 1})"})
             await asyncio.sleep(0.5)
+            # Re-read task to pick up session_file if route endpoint just set it
+            db.refresh(task)
             transcript_path = find_transcript()
             if transcript_path:
                 break
 
     if not transcript_path:
-        await websocket.send_json({"type": "error", "message": "Agent session not found. Task may not have started yet."})
+        await websocket.send_json({"type": "error", "message": f"Agent session not found for task {short_id}. Task may not have started yet."})
         await websocket.close()
         return
 
-    await websocket.send_json({"type": "connected", "message": f"Streaming {agent_id} session..."})
+    await websocket.send_json({"type": "connected", "message": f"Streaming {agent_id} session ({transcript_path.name})..."})
 
     # Tail the transcript file, backfilling the last 60 lines first
     try:
@@ -2124,6 +2147,7 @@ curl -X PATCH http://localhost:8000/api/tasks/{task_id} \\
           - asyncio.create_subprocess_exec yields to event loop while waiting
           - Each task gets its own session-id so sessions never share state
           - 900s timeout enforced via asyncio.wait_for
+          - After starting, we poll sessions.json to persist session_file on the task
         """
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -2135,6 +2159,38 @@ curl -X PATCH http://localhost:8000/api/tasks/{task_id} \\
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(Path.home())
             )
+
+            # After a brief startup delay, scan sessions.json and store the session file
+            # path on the task so the stream endpoint can find it without guessing.
+            async def persist_session_file():
+                sessions_dir = Path.home() / ".openclaw" / "agents" / agent_id / "sessions"
+                sessions_json_path = sessions_dir / "sessions.json"
+                for _ in range(20):  # poll up to 10s
+                    await asyncio.sleep(0.5)
+                    try:
+                        if sessions_json_path.exists():
+                            with open(sessions_json_path) as f:
+                                sdata = json.load(f)
+                            for _key, entry in sdata.items():
+                                if entry.get("sessionId") == sid:
+                                    sf = entry.get("sessionFile")
+                                    if sf and Path(sf).exists():
+                                        # Persist to DB
+                                        db2 = SessionLocal()
+                                        try:
+                                            t2 = db2.query(Task).filter(Task.id == tid).first()
+                                            if t2 and t2.session_file != sf:
+                                                t2.session_file = sf
+                                                db2.commit()
+                                                print(f"[route] Stored session_file for task {tid}: {sf}")
+                                        finally:
+                                            db2.close()
+                                        return
+                    except Exception as pe:
+                        print(f"[route] persist_session_file error: {pe}")
+
+            asyncio.create_task(persist_session_file())
+
             try:
                 stdout_bytes, stderr_bytes = await asyncio.wait_for(
                     proc.communicate(), timeout=900
