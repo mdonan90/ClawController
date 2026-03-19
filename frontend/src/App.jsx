@@ -36,7 +36,7 @@ function ErrorScreen({ error, onRetry }) {
           Retry Connection
         </button>
         <p className="error-hint">
-          Make sure the backend is running at http://localhost:8000
+          Make sure ClawController is running at http://localhost:5001
         </p>
       </div>
     </div>
