@@ -388,7 +388,7 @@
   color: var(--text-secondary);
 }
 
-.agent-list {
+.status-page .agent-list {
   max-height: 200px;
   overflow-y: auto;
   border: 1px solid var(--bg-elevated);
