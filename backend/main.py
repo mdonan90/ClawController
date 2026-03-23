@@ -521,17 +521,21 @@ async def stream_task_session(websocket: WebSocket, task_id: str, db: Session = 
     sessions_json = sessions_dir / "sessions.json"
 
     def find_transcript():
+        # 1. Explicit session_file on the task (set when routed)
         if hasattr(task, 'session_file') and task.session_file:
             candidate = Path(task.session_file)
             if candidate.exists():
                 return candidate
+
+        # 2. Search sessions.json for task-keyed session
         try:
             if sessions_json.exists():
                 with open(sessions_json) as f:
                     sessions_data = json.load(f)
                 for key, sdata in sessions_data.items():
                     sid = sdata.get("sessionId", "")
-                    if sid == task_session_id:
+                    # Match by task session ID pattern
+                    if sid == task_session_id or key == f"agent:{agent_id}:task-{short_id}":
                         sf = sdata.get("sessionFile")
                         if sf:
                             candidate = Path(sf)
@@ -540,17 +544,29 @@ async def stream_task_session(websocket: WebSocket, task_id: str, db: Session = 
                         candidate = sessions_dir / f"{sid}.jsonl"
                         if candidate.exists():
                             return candidate
-                    if key == f"agent:{agent_id}:task-{short_id}":
-                        sid2 = sdata.get("sessionId")
-                        if sid2:
-                            candidate = sessions_dir / f"{sid2}.jsonl"
-                            if candidate.exists():
-                                return candidate
         except Exception:
             pass
+
+        # 3. Direct file match
         direct = sessions_dir / f"{task_session_id}.jsonl"
         if direct.exists():
             return direct
+
+        # 4. FALLBACK: Find the most recently modified .jsonl for this agent
+        #    This catches tasks routed via openclaw agent (tui-* session IDs)
+        if sessions_dir.exists():
+            jsonl_files = sorted(
+                sessions_dir.glob("*.jsonl"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
+            if jsonl_files:
+                newest = jsonl_files[0]
+                # Only use if modified recently (within last 2 hours = likely the active session)
+                import time
+                if time.time() - newest.stat().st_mtime < 7200:
+                    return newest
+
         return None
 
     transcript_path = find_transcript()
