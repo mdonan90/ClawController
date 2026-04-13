@@ -797,7 +797,7 @@ export const useMissionStore = create((set, get) => ({
       set({ loadingRecurring: true })
       await api.createRecurringTask(taskData)
       await get().refreshRecurringTasks()
-      set({ loadingRecurring: false })
+      set({ isNewTaskOpen: false, loadingRecurring: false })
     } catch (error) {
       console.error('Failed to create recurring task:', error)
       set({ loadingRecurring: false })

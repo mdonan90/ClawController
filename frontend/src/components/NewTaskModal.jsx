@@ -399,7 +399,7 @@ export default function NewTaskModal() {
             <button 
               type="submit" 
               className={`primary-button ${isLoading ? 'button-loading' : ''}`}
-              disabled={!title.trim() || loadingTasks}
+              disabled={!title.trim() || isLoading}
             >
               <Plus size={16} />
               {isLoading ? 'Creating...' : (isRecurring ? 'Create Recurring Task' : 'Create Task')}
