@@ -18,12 +18,12 @@ import logging
 
 # Configuration
 HEALTH_CHECK_INTERVAL = 30  # Check every 30 seconds
-HEALTH_CHECK_TIMEOUT = 10   # Timeout for health check commands
+HEALTH_CHECK_TIMEOUT = 30   # Timeout for health check commands
 MAX_RESTART_ATTEMPTS = 3    # Max restart attempts before giving up
 RESTART_COOLDOWN = timedelta(minutes=5)  # Wait before retry after multiple failures
 NOTIFICATION_COOLDOWN = timedelta(minutes=15)  # Don't spam crash notifications
-STARTUP_DELAY = 30          # Seconds to wait after crash before watchdog restarts (lets LaunchAgent self-heal first)
-RESTART_VERIFY_DELAY = 15   # Seconds to wait after restart before verifying health
+STARTUP_DELAY = 90          # Seconds to wait after crash before watchdog restarts (lets LaunchAgent self-heal first)
+RESTART_VERIFY_DELAY = 45   # Seconds to wait after restart before verifying health
 STATE_FILE = Path(__file__).parent.parent / "data" / "gateway_watchdog_state.json"
 
 class GatewayWatchdog:
@@ -73,43 +73,49 @@ class GatewayWatchdog:
         Returns: (is_healthy, status_message)
         """
         try:
-            # Try a simple status check command with timeout
-            result = await asyncio.wait_for(
-                asyncio.create_subprocess_exec(
-                    "openclaw", "status", "--json",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                ),
-                timeout=HEALTH_CHECK_TIMEOUT
+            # Use the Gateway-specific probe. `openclaw status --json` can report
+            # a stale gateway timeout while `openclaw gateway status` succeeds,
+            # which caused thousands of false crash alerts and needless restarts.
+            process = await asyncio.create_subprocess_exec(
+                "openclaw", "gateway", "status",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
             )
             
-            stdout, stderr = await result.communicate()
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(),
+                timeout=HEALTH_CHECK_TIMEOUT,
+            )
+            output = f"{stdout.decode(errors='replace')}\n{stderr.decode(errors='replace')}"
             
-            if result.returncode == 0:
-                # Parse status output to verify gateway is actually running
-                try:
-                    status_data = json.loads(stdout.decode())
-                    gateway_info = status_data.get("gateway", {})
-                    is_reachable = gateway_info.get("reachable", False)
-                    error = gateway_info.get("error", "")
-                    connect_latency = gateway_info.get("connectLatencyMs")
-                    
-                    if is_reachable:
-                        return True, "Gateway healthy"
-                    elif connect_latency is not None and "missing scope" in error:
-                        # Gateway is running and responding (we connected), but the
-                        # status probe lacks operator.read scope. This is an auth
-                        # config issue, not a crash. Treat as healthy.
-                        return True, f"Gateway running (scope warning: {error})"
-                    else:
-                        return False, f"Gateway status: {error or 'unreachable'}"
-                except json.JSONDecodeError:
-                    return False, "Gateway responding but status unreadable"
-            else:
-                error_msg = stderr.decode().strip() if stderr else "Unknown error"
-                return False, f"Status check failed: {error_msg}"
+            if "Connectivity probe: ok" in output:
+                return True, "Gateway healthy"
+            
+            # During LaunchAgent startup the gateway can be listening before the
+            # admin WebSocket probe is ready. Treat the CLI's own warm-up state as
+            # non-crashed; the next interval will verify full connectivity.
+            if "Runtime: running" in output and "Warm-up:" in output:
+                return True, "Gateway warming up"
+            
+            if "Connectivity probe: failed" in output:
+                for line in output.splitlines():
+                    stripped = line.strip()
+                    if stripped in {"timeout", "ECONNREFUSED"} or "ECONNREFUSED" in stripped:
+                        return False, f"Gateway status: {stripped}"
+                return False, "Gateway connectivity probe failed"
+            
+            if process.returncode == 0:
+                return False, "Gateway status unreadable"
+            
+            error_msg = stderr.decode(errors='replace').strip() or stdout.decode(errors='replace').strip() or "Unknown error"
+            return False, f"Status check failed: {error_msg}"
                 
         except asyncio.TimeoutError:
+            try:
+                process.kill()
+                await process.wait()
+            except Exception:
+                pass
             return False, "Health check timed out"
         except Exception as e:
             return False, f"Health check error: {str(e)}"
@@ -122,19 +128,18 @@ class GatewayWatchdog:
         try:
             logging.info("Attempting to restart OpenClaw gateway...")
             
-            # Try to restart using openclaw gateway start
-            result = await asyncio.wait_for(
-                asyncio.create_subprocess_exec(
-                    "openclaw", "gateway", "start",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                ),
-                timeout=30  # Give restart more time
+            # Use the proper restart command. `openclaw gateway start` fails when
+            # LaunchAgent already owns the port, which made auto-restart reports
+            # look failed even when the service was simply warming up.
+            process = await asyncio.create_subprocess_exec(
+                "openclaw", "gateway", "restart",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
             )
             
-            stdout, stderr = await result.communicate()
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=90)
             
-            if result.returncode == 0:
+            if process.returncode == 0:
                 # Wait for gateway to fully start before verifying
                 await asyncio.sleep(RESTART_VERIFY_DELAY)
                 
@@ -148,10 +153,15 @@ class GatewayWatchdog:
                 else:
                     return False, f"Gateway started but not healthy: {status_msg}"
             else:
-                error_msg = stderr.decode().strip() if stderr else "Unknown error"
+                error_msg = stderr.decode().strip() or stdout.decode().strip() or "Unknown error"
                 return False, f"Restart command failed: {error_msg}"
                 
         except asyncio.TimeoutError:
+            try:
+                process.kill()
+                await process.wait()
+            except Exception:
+                pass
             return False, "Restart command timed out"
         except Exception as e:
             return False, f"Restart failed: {str(e)}"
