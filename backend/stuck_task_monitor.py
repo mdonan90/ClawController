@@ -32,6 +32,7 @@ URGENT_TASK_THRESHOLDS = {
 
 AGENT_OFFLINE_THRESHOLD = timedelta(hours=6)      # Agent considered offline after 6 hours
 NOTIFICATION_COOLDOWN = timedelta(hours=6)        # Don't spam notifications
+STUCK_MONITOR_IGNORE_TAGS = {"long-running", "watching", "monitor-ok", "no-stuck-alert"}
 STATE_FILE = Path(__file__).parent.parent / "data" / "stuck_task_state.json"
 
 class StuckTaskMonitor:
@@ -119,6 +120,9 @@ class StuckTaskMonitor:
         """Check if a single task is stuck."""
         if not task.updated_at:
             return None
+
+        if self._task_has_ignored_tag(task):
+            return None
         
         # Determine threshold based on priority
         if hasattr(task, 'priority') and task.priority and task.priority.value == "URGENT":
@@ -146,6 +150,23 @@ class StuckTaskMonitor:
             }
         
         return None
+
+    def _task_has_ignored_tag(self, task: Task) -> bool:
+        """Return True for intentionally long-running/watch tasks that should not alert."""
+        raw_tags = getattr(task, 'tags', None)
+        if not raw_tags:
+            return False
+
+        try:
+            parsed_tags = json.loads(raw_tags) if isinstance(raw_tags, str) else raw_tags
+        except Exception:
+            parsed_tags = [tag.strip() for tag in str(raw_tags).split(',')]
+
+        if not isinstance(parsed_tags, list):
+            return False
+
+        normalized = {str(tag).strip().lower() for tag in parsed_tags}
+        return bool(normalized & STUCK_MONITOR_IGNORE_TAGS)
     
     def _should_notify_about_task(self, task_id: str, stuck_info: Dict) -> bool:
         """Determine if we should send a notification for this stuck task."""
